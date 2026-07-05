@@ -584,6 +584,22 @@
     padding:3px 9px;
     border-radius:999px;
   }
+  .lodge-card .lodge-link{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    margin-top:10px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--coral-dim);
+    background:rgba(238,130,102,0.1);
+    border:1px solid rgba(238,130,102,0.35);
+    padding:5px 12px;
+    border-radius:999px;
+    text-decoration:none;
+    transition:background .12s ease, transform .12s ease;
+  }
+  .lodge-card .lodge-link:hover{background:rgba(238,130,102,0.18); transform:translateY(-1px);}
 
   footer{
     text-align:center;
@@ -782,6 +798,10 @@
       <div class="field">
         <label for="lf-tag">Étiquette (optionnel)</label>
         <input type="text" id="lf-tag" placeholder="Réservation par contact direct">
+      </div>
+      <div class="field">
+        <label for="lf-link">Lien vers le site (optionnel)</label>
+        <input type="text" id="lf-link" placeholder="https://...">
       </div>
       <div class="field check-field">
         <input type="checkbox" id="lf-priority">
@@ -1101,6 +1121,7 @@
         ${l.meta ? `<div class="lodge-meta">${escapeHtml(l.meta)}</div>` : ''}
         <p>${escapeHtml(l.description)}</p>
         ${l.tag ? `<span class="tag">${escapeHtml(l.tag)}</span>` : ''}
+        ${l.link ? `<div><a class="lodge-link" href="${escapeHtml(l.link)}" target="_blank" rel="noopener noreferrer">🔗 Voir le site</a></div>` : ''}
       </div>
     </div>`;
   }
@@ -1149,6 +1170,7 @@
     document.getElementById('lf-meta').value = lodging ? (lodging.meta || '') : '';
     document.getElementById('lf-description').value = lodging ? lodging.description : '';
     document.getElementById('lf-tag').value = lodging ? (lodging.tag || '') : '';
+    document.getElementById('lf-link').value = lodging ? (lodging.link || '') : '';
     document.getElementById('lf-priority').checked = lodging ? !!lodging.priority : false;
     document.getElementById('lf-sort').value = lodging ? (lodging.sort_order ?? 0) : 0;
     lodgingModalTitle.textContent = lodging ? 'Modifier le logement' : 'Ajouter un logement';
@@ -1200,6 +1222,7 @@
       meta: document.getElementById('lf-meta').value.trim() || null,
       description: document.getElementById('lf-description').value.trim(),
       tag: document.getElementById('lf-tag').value.trim() || null,
+      link: document.getElementById('lf-link').value.trim() || null,
       priority: document.getElementById('lf-priority').checked,
       sort_order: Number(document.getElementById('lf-sort').value) || 0
     };

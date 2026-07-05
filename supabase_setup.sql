@@ -15,6 +15,10 @@
 -- Remarque : la page charge ce fichier via fetch(), il faut donc la servir
 -- en http(s) (GitHub Pages, un serveur local, etc.) — l'ouvrir directement
 -- depuis le disque (file://) ne fonctionnera pas.
+--
+-- Si tu as déjà créé la table "lodgings" avant l'ajout du champ "link"
+-- (lien vers le site d'un logement externe), inutile de tout recréer :
+--   alter table lodgings add column link text;
 -- ============================================================
 
 
@@ -42,6 +46,7 @@ create table lodgings (
   meta text,
   description text not null,
   tag text,
+  link text,
   priority boolean default false,
   sort_order int default 0,
   created_at timestamptz default now()
@@ -50,25 +55,25 @@ alter table lodgings enable row level security;
 create policy "public read lodgings" on lodgings for select using (true);
 
 -- Exemple de données pour démarrer (à adapter ou supprimer) :
-insert into lodgings (category, icon, title, meta, description, tag, priority, sort_order) values
+insert into lodgings (category, icon, title, meta, description, tag, link, priority, sort_order) values
 ('onplace', '⛺', 'Camper sous tente', 'Sur place · Route de la Tuque Haute',
  'Possibilité de planter la tente directement sur place, au milieu de la fête. Amène ton matériel de camping.',
- null, true, 1),
+ null, null, true, 1),
 ('onplace', '🛌', '7 chambres sur place', 'Sur place · nombre limité',
  '7 chambres disponibles directement sur place. Priorité donnée aux familles et aux personnes qui restent pour la semaine complète. Places limitées — contacte-nous directement pour réserver.',
- 'Réservation par contact direct', true, 2),
+ 'Réservation par contact direct', null, true, 2),
 ('nearby', '⛺', 'Camping du Lac', '≈ 10 min à pied · emplacements & mobil-homes',
  'Camping familial avec sanitaires, à distance de marche du lieu de fête. À réserver tôt en juillet.',
- null, false, 1),
+ null, 'https://exemple.com/camping-du-lac', false, 1),
 ('nearby', '🏡', 'Gîte des Tilleuls', '≈ 5 min en voiture · 6 personnes',
  'Gîte entier à louer pour un groupe, cuisine équipée. Idéal pour un groupe d''amis qui veut rester ensemble.',
- null, false, 2),
+ null, 'https://exemple.com/gite-des-tilleuls', false, 2),
 ('nearby', '🛏️', 'Chambres d''hôtes Les Figuiers', '≈ 15 min en voiture · 3 chambres',
  'Chambres d''hôtes calmes avec petit-déjeuner inclus, bon rapport qualité-prix.',
- null, false, 3),
+ null, 'https://exemple.com/les-figuiers', false, 3),
 ('nearby', '🏨', 'Hôtel du Centre', '≈ 20 min en voiture · option la plus simple',
  'Solution pratique si tu arrives tard ou repars tôt, sans réservation à l''avance nécessaire.',
- null, false, 4);
+ null, 'https://exemple.com/hotel-du-centre', false, 4);
 
 
 -- ============================================================

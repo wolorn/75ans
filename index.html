@@ -18,7 +18,6 @@
   </svg>
 </div>
 
-
 <header class="hero">
   <div class="balloon-field" id="balloon-field"></div>
   <div class="hero-inner">
@@ -47,6 +46,7 @@
       <button class="tab-btn active" data-tab="accueil">Accueil</button>
       <button class="tab-btn" data-tab="presence">Présence</button>
       <button class="tab-btn" data-tab="logements">Logements</button>
+      <button class="tab-btn" data-tab="articles">Articles</button>
     </div>
     <button type="button" class="admin-btn" id="admin-btn">🔒 Admin</button>
   </div>
@@ -144,6 +144,18 @@
     </div>
   </section>
 
+  <!-- ARTICLES -->
+  <section class="panel" id="panel-articles">
+    <h2 class="section-title">Articles</h2>
+    <p class="section-lead">Les dernières nouvelles et infos utiles avant la fête.</p>
+
+    <button type="button" class="add-lodging-btn admin-only" id="add-article-btn">+ Ajouter un article</button>
+
+    <div class="article-list" id="article-list">
+      <p class="empty-note">Chargement des articles...</p>
+    </div>
+  </section>
+
 </main>
 
 <!-- MODAL : Connexion admin -->
@@ -214,6 +226,31 @@
       </div>
       <button type="submit" class="submit" id="lodging-form-submit">Enregistrer</button>
       <div class="status-msg" id="lodging-form-status" role="status"></div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL : Ajout / édition d'un article -->
+<div class="modal-overlay hidden" id="article-modal">
+  <div class="modal-box">
+    <button type="button" class="modal-close" id="article-modal-close" aria-label="Fermer">✕</button>
+    <h3 id="article-modal-title">Ajouter un article</h3>
+    <form id="article-form">
+      <input type="hidden" id="af-id">
+      <div class="field">
+        <label for="af-title">Titre</label>
+        <input type="text" id="af-title" required>
+      </div>
+      <div class="field">
+        <label for="af-date">Date de publication</label>
+        <input type="date" id="af-date" required>
+      </div>
+      <div class="field">
+        <label for="af-content">Texte</label>
+        <textarea id="af-content" rows="6" required></textarea>
+      </div>
+      <button type="submit" class="submit" id="article-form-submit">Enregistrer</button>
+      <div class="status-msg" id="article-form-status" role="status"></div>
     </form>
   </div>
 </div>

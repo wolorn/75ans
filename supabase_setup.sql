@@ -19,6 +19,10 @@
 -- Si tu as déjà créé la table "lodgings" avant l'ajout du champ "link"
 -- (lien vers le site d'un logement externe), inutile de tout recréer :
 --   alter table lodgings add column link text;
+--
+-- Si tu as déjà un projet configuré avant l'ajout de l'onglet "Articles",
+-- il suffit d'exécuter le bloc "Table des articles" ci-dessous (et les
+-- policies admin associées), pas besoin de tout rejouer.
 -- ============================================================
 
 
@@ -74,6 +78,26 @@ insert into lodgings (category, icon, title, meta, description, tag, link, prior
 ('nearby', '🏨', 'Hôtel du Centre', '≈ 20 min en voiture · option la plus simple',
  'Solution pratique si tu arrives tard ou repars tôt, sans réservation à l''avance nécessaire.',
  null, 'https://exemple.com/hotel-du-centre', false, 4);
+
+
+-- ---------- Table des articles ----------
+create table articles (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  published_at date not null default current_date,
+  content text not null,
+  created_at timestamptz default now()
+);
+alter table articles enable row level security;
+-- Lecture publique pour tout le monde.
+create policy "public read articles" on articles for select using (true);
+-- Écriture réservée à l'admin (voir section "Droits d'écriture admin" plus bas).
+create policy "admin insert articles" on articles
+  for insert to authenticated with check (true);
+create policy "admin update articles" on articles
+  for update to authenticated using (true) with check (true);
+create policy "admin delete articles" on articles
+  for delete to authenticated using (true);
 
 
 -- ============================================================

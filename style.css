@@ -591,6 +591,43 @@
   }
   .lodge-card .lodge-link:hover{background:rgba(238,130,102,0.18); transform:translateY(-1px);}
 
+  /* ---------- Articles ---------- */
+  .article-list{display:flex; flex-direction:column; gap:16px; margin-top:16px;}
+  .article-card{
+    position:relative;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:22px 24px;
+  }
+  .article-date{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--coral-dim);
+    margin-bottom:6px;
+  }
+  .article-card h4{margin:0 0 10px; font-family:'Fraunces', serif; font-size:20px; color:var(--ink);}
+  .article-card .article-text{margin:0; color:var(--ink-dim); font-size:14px; line-height:1.6; white-space:pre-wrap;}
+  .article-admin-actions{
+    display:none;
+    position:absolute;
+    top:18px; right:18px;
+    gap:6px;
+  }
+  body.is-admin .article-admin-actions{display:flex;}
+  .article-admin-actions button{
+    appearance:none;
+    border:1px solid var(--border);
+    background:var(--card-tint);
+    border-radius:8px;
+    width:28px; height:28px;
+    cursor:pointer;
+    font-size:13px;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .article-admin-actions button:hover{border-color:var(--coral);}
+
   footer{
     text-align:center;
     padding:30px 24px 50px;

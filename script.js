@@ -134,6 +134,7 @@
         applyAdminState(session);
         refreshGuestList();
         refreshLodgings();
+        refreshArticles();
       });
     }catch(e){
       console.error('Config Supabase invalide ou introuvable:', e);
@@ -479,6 +480,140 @@
     }
   });
 
+  // ---------- Articles ----------
+  const articleListEl = document.getElementById('article-list');
+  const addArticleBtn = document.getElementById('add-article-btn');
+  let currentArticles = [];
+
+  async function loadArticles(){
+    if(!dbClient) return [];
+    const { data, error } = await dbClient
+      .from('articles')
+      .select('*')
+      .order('published_at', { ascending: false });
+    if(error){ console.error(error); return []; }
+    return data;
+  }
+
+  function fmtArticleDate(dateStr){
+    const d = new Date(dateStr + 'T00:00:00');
+    if(isNaN(d)) return dateStr;
+    return d.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
+  }
+
+  function articleCardHtml(a){
+    return `<div class="article-card" data-id="${a.id}">
+      <div class="article-admin-actions">
+        <button type="button" class="edit-article" data-id="${a.id}" title="Modifier">✎</button>
+        <button type="button" class="delete-article" data-id="${a.id}" title="Supprimer">🗑</button>
+      </div>
+      <div class="article-date">${escapeHtml(fmtArticleDate(a.published_at))}</div>
+      <h4>${escapeHtml(a.title)}</h4>
+      <p class="article-text">${escapeHtml(a.content)}</p>
+    </div>`;
+  }
+
+  function renderArticles(articles){
+    currentArticles = articles;
+    articleListEl.innerHTML = articles.length
+      ? articles.map(articleCardHtml).join('')
+      : '<p class="empty-note">Aucun article pour l\'instant.</p>';
+  }
+
+  async function refreshArticles(){
+    if(!dbClient){
+      articleListEl.innerHTML = '<p class="empty-note">Base de données non configurée : vérifie le fichier supabase_access.txt.</p>';
+      return;
+    }
+    const articles = await loadArticles();
+    renderArticles(articles);
+  }
+
+  // ---------- Admin : ajout / édition / suppression d'article ----------
+  const articleModal = document.getElementById('article-modal');
+  const articleModalClose = document.getElementById('article-modal-close');
+  const articleModalTitle = document.getElementById('article-modal-title');
+  const articleForm = document.getElementById('article-form');
+  const articleFormStatus = document.getElementById('article-form-status');
+  const articleFormSubmit = document.getElementById('article-form-submit');
+
+  function todayIso(){
+    const d = new Date();
+    const tz = d.getTimezoneOffset() * 60000;
+    return new Date(d - tz).toISOString().slice(0,10);
+  }
+
+  function openArticleModal(article){
+    articleForm.reset();
+    articleFormStatus.textContent = '';
+    articleFormStatus.className = 'status-msg';
+    document.getElementById('af-id').value = article ? article.id : '';
+    document.getElementById('af-title').value = article ? article.title : '';
+    document.getElementById('af-date').value = article ? article.published_at : todayIso();
+    document.getElementById('af-content').value = article ? article.content : '';
+    articleModalTitle.textContent = article ? 'Modifier l\'article' : 'Ajouter un article';
+    articleModal.classList.remove('hidden');
+  }
+  function closeArticleModal(){ articleModal.classList.add('hidden'); }
+
+  articleModalClose.addEventListener('click', closeArticleModal);
+  articleModal.addEventListener('click', (e)=>{ if(e.target === articleModal) closeArticleModal(); });
+
+  addArticleBtn.addEventListener('click', ()=>{
+    if(!isAdmin) return;
+    openArticleModal(null);
+  });
+
+  articleListEl.addEventListener('click', async (e)=>{
+    const editBtn = e.target.closest('.edit-article');
+    const deleteBtn = e.target.closest('.delete-article');
+    if(!isAdmin || (!editBtn && !deleteBtn)) return;
+
+    if(editBtn){
+      const article = currentArticles.find(a=>String(a.id) === editBtn.dataset.id);
+      if(article) openArticleModal(article);
+    }
+    if(deleteBtn){
+      if(!confirm('Supprimer cet article ?')) return;
+      try{
+        const { error } = await dbClient.from('articles').delete().eq('id', deleteBtn.dataset.id);
+        if(error) throw error;
+        await refreshArticles();
+      }catch(err){
+        console.error(err);
+        alert('Erreur lors de la suppression.');
+      }
+    }
+  });
+
+  articleForm.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const id = document.getElementById('af-id').value;
+    const payload = {
+      title: document.getElementById('af-title').value.trim(),
+      published_at: document.getElementById('af-date').value,
+      content: document.getElementById('af-content').value.trim()
+    };
+
+    articleFormSubmit.disabled = true;
+    articleFormStatus.textContent = 'Enregistrement...';
+    articleFormStatus.className = 'status-msg';
+    try{
+      const { error } = id
+        ? await dbClient.from('articles').update(payload).eq('id', id)
+        : await dbClient.from('articles').insert([payload]);
+      if(error) throw error;
+      closeArticleModal();
+      await refreshArticles();
+    }catch(err){
+      console.error(err);
+      articleFormStatus.textContent = 'Erreur lors de l\'enregistrement.';
+      articleFormStatus.className = 'status-msg err';
+    }finally{
+      articleFormSubmit.disabled = false;
+    }
+  });
+
   (async function initApp(){
     await loadSupabaseConfig();
     if(!dbClient){
@@ -487,4 +622,5 @@
     }
     refreshGuestList();
     refreshLodgings();
+    refreshArticles();
   })();

@@ -236,9 +236,12 @@
     max-width:920px;
     margin:0 auto;
     display:flex;
-    gap:4px;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
     padding:0 16px;
   }
+  .tabs-left{display:flex; gap:4px;}
   .tab-btn{
     appearance:none;
     background:none;
@@ -258,6 +261,121 @@
     border-bottom-color:var(--coral);
   }
   .tab-btn:focus-visible{outline:2px solid var(--coral); outline-offset:2px;}
+
+  /* ---------- Admin ---------- */
+  .admin-btn{
+    appearance:none;
+    border:1px solid var(--border);
+    background:var(--card);
+    color:var(--ink-dim);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    padding:8px 14px;
+    border-radius:999px;
+    cursor:pointer;
+    white-space:nowrap;
+    flex-shrink:0;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  .admin-btn:hover{border-color:var(--coral); color:var(--coral-dim);}
+  body.is-admin .admin-btn{border-color:var(--coral); color:var(--coral-dim); background:var(--card-tint);}
+
+  .admin-only{display:none;}
+  body.is-admin .admin-only{display:inline-flex;}
+  body.is-admin button.admin-only{align-items:center;}
+
+  .modal-overlay{
+    position:fixed; inset:0;
+    background:rgba(62,52,82,0.45);
+    display:flex; align-items:center; justify-content:center;
+    padding:20px;
+    z-index:100;
+  }
+  .modal-overlay.hidden{display:none;}
+  .modal-box{
+    position:relative;
+    background:var(--card);
+    border-radius:var(--radius);
+    padding:28px;
+    max-width:440px;
+    width:100%;
+    max-height:90vh;
+    overflow-y:auto;
+    box-shadow:0 10px 40px rgba(62,52,82,0.25);
+  }
+  .modal-box h3{
+    font-family:'Fraunces', serif;
+    font-size:20px;
+    margin:0 0 18px;
+    color:var(--ink);
+  }
+  .modal-close{
+    position:absolute;
+    top:14px; right:14px;
+    appearance:none;
+    border:none;
+    background:none;
+    color:var(--ink-dim);
+    font-size:18px;
+    cursor:pointer;
+    line-height:1;
+    padding:4px;
+  }
+  .modal-close:hover{color:var(--coral-dim);}
+
+  .add-lodging-btn{
+    display:none;
+    align-items:center;
+    gap:6px;
+    appearance:none;
+    background:var(--card);
+    border:1px dashed var(--coral);
+    color:var(--coral-dim);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    padding:8px 14px;
+    border-radius:999px;
+    cursor:pointer;
+    margin-bottom:14px;
+  }
+  body.is-admin .add-lodging-btn{display:inline-flex;}
+  .add-lodging-btn:hover{background:var(--card-tint);}
+
+  .lodge-card{position:relative;}
+  .lodge-admin-actions{
+    display:none;
+    position:absolute;
+    top:14px; right:14px;
+    gap:6px;
+  }
+  body.is-admin .lodge-admin-actions{display:flex;}
+  .lodge-admin-actions button{
+    appearance:none;
+    border:1px solid var(--border);
+    background:var(--card-tint);
+    border-radius:8px;
+    width:28px; height:28px;
+    cursor:pointer;
+    font-size:13px;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .lodge-admin-actions button:hover{border-color:var(--coral);}
+
+  .guest-delete-btn{
+    display:none;
+    appearance:none;
+    border:1px solid var(--border);
+    background:var(--card-tint);
+    border-radius:8px;
+    width:28px; height:28px;
+    cursor:pointer;
+    font-size:13px;
+    align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  body.is-admin .guest-delete-btn{display:inline-flex;}
+  .guest-delete-btn:hover{border-color:var(--coral-dim);}
 
   main{max-width:760px; margin:0 auto; padding:40px 24px 100px;}
   section.panel{display:none;}
@@ -508,9 +626,12 @@
 
 <nav class="tabs">
   <div class="tabs-inner">
-    <button class="tab-btn active" data-tab="accueil">Accueil</button>
-    <button class="tab-btn" data-tab="presence">Présence</button>
-    <button class="tab-btn" data-tab="logements">Logements</button>
+    <div class="tabs-left">
+      <button class="tab-btn active" data-tab="accueil">Accueil</button>
+      <button class="tab-btn" data-tab="presence">Présence</button>
+      <button class="tab-btn" data-tab="logements">Logements</button>
+    </div>
+    <button type="button" class="admin-btn" id="admin-btn">🔒 Admin</button>
   </div>
 </nav>
 
@@ -594,17 +715,87 @@
     <p class="section-lead">Deux façons de dormir sur place, et quelques options à proximité si tu préfères être au calme.</p>
 
     <p class="subsection-title">Sur place</p>
+    <button type="button" class="add-lodging-btn admin-only" data-category="onplace">+ Ajouter un logement sur place</button>
     <div class="lodging-grid" id="lodging-onplace">
       <p class="empty-note">Chargement des logements...</p>
     </div>
 
     <p class="subsection-title">À proximité</p>
+    <button type="button" class="add-lodging-btn admin-only" data-category="nearby">+ Ajouter un logement à proximité</button>
     <div class="lodging-grid" id="lodging-nearby">
       <p class="empty-note">Chargement des logements...</p>
     </div>
   </section>
 
 </main>
+
+<!-- MODAL : Connexion admin -->
+<div class="modal-overlay hidden" id="admin-modal">
+  <div class="modal-box">
+    <button type="button" class="modal-close" id="admin-modal-close" aria-label="Fermer">✕</button>
+    <h3>Connexion admin</h3>
+    <form id="admin-login-form">
+      <div class="field">
+        <label for="admin-email">Email</label>
+        <input type="text" id="admin-email" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="admin-password">Mot de passe</label>
+        <input type="password" id="admin-password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="submit" id="admin-login-submit">Se connecter</button>
+      <div class="status-msg" id="admin-login-status" role="status"></div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL : Ajout / édition d'un logement -->
+<div class="modal-overlay hidden" id="lodging-modal">
+  <div class="modal-box">
+    <button type="button" class="modal-close" id="lodging-modal-close" aria-label="Fermer">✕</button>
+    <h3 id="lodging-modal-title">Ajouter un logement</h3>
+    <form id="lodging-form">
+      <input type="hidden" id="lf-id">
+      <div class="field">
+        <label for="lf-category">Catégorie</label>
+        <select id="lf-category" style="width:100%; background:var(--card-tint); border:1px solid var(--border); border-radius:8px; padding:11px 13px; color:var(--ink); font-family:'Work Sans', sans-serif; font-size:15px;">
+          <option value="onplace">Sur place</option>
+          <option value="nearby">À proximité</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="lf-icon">Icône (emoji)</label>
+        <input type="text" id="lf-icon" placeholder="🏠">
+      </div>
+      <div class="field">
+        <label for="lf-title">Titre</label>
+        <input type="text" id="lf-title" required>
+      </div>
+      <div class="field">
+        <label for="lf-meta">Info courte (distance, capacité...)</label>
+        <input type="text" id="lf-meta" placeholder="≈ 10 min à pied · 4 personnes">
+      </div>
+      <div class="field">
+        <label for="lf-description">Description</label>
+        <textarea id="lf-description" rows="3" required></textarea>
+      </div>
+      <div class="field">
+        <label for="lf-tag">Étiquette (optionnel)</label>
+        <input type="text" id="lf-tag" placeholder="Réservation par contact direct">
+      </div>
+      <div class="field check-field">
+        <input type="checkbox" id="lf-priority">
+        <label for="lf-priority" style="margin:0;">Mettre en avant (carte prioritaire)</label>
+      </div>
+      <div class="field">
+        <label for="lf-sort">Ordre d'affichage</label>
+        <input type="number" id="lf-sort" value="0">
+      </div>
+      <button type="submit" class="submit" id="lodging-form-submit">Enregistrer</button>
+      <div class="status-msg" id="lodging-form-status" role="status"></div>
+    </form>
+  </div>
+</div>
 
 <footer>Fait avec impatience pour la semaine du 10 au 17 juillet 2027 — Route de la Tuque Haute.</footer>
 
@@ -722,8 +913,13 @@
   // Remarque : le fichier est chargé via fetch(), il faut donc servir la page en
   // http(s) (GitHub Pages, un serveur local, etc.) — ouvrir le .html directement
   // depuis le disque (file://) ne fonctionnera pas.
+  //
+  // Compte admin : voir supabase_setup.sql pour la marche à suivre (création
+  // du compte dans Authentication > Users, et désactivation des inscriptions
+  // publiques).
   let dbClient = null;
   let inviteCode = null;
+  let isAdmin = false;
 
   async function loadSupabaseConfig(){
     try{
@@ -733,11 +929,75 @@
       if(!cfg.supabase_url || !cfg.supabase_anon_key) throw new Error('champs manquants');
       dbClient = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
       inviteCode = cfg.invite_code || null;
+
+      const { data: { session } } = await dbClient.auth.getSession();
+      applyAdminState(session);
+      dbClient.auth.onAuthStateChange((_event, session)=>{
+        applyAdminState(session);
+        refreshGuestList();
+        refreshLodgings();
+      });
     }catch(e){
       console.error('Config Supabase invalide ou introuvable:', e);
       dbClient = null;
     }
   }
+
+  // ---------- Admin : connexion / déconnexion ----------
+  const adminBtn = document.getElementById('admin-btn');
+  const adminModal = document.getElementById('admin-modal');
+  const adminModalClose = document.getElementById('admin-modal-close');
+  const adminLoginForm = document.getElementById('admin-login-form');
+  const adminLoginStatus = document.getElementById('admin-login-status');
+  const adminLoginSubmit = document.getElementById('admin-login-submit');
+
+  function applyAdminState(session){
+    isAdmin = !!session;
+    document.body.classList.toggle('is-admin', isAdmin);
+    adminBtn.textContent = isAdmin ? `🔓 ${session.user.email} · déconnexion` : '🔒 Admin';
+  }
+
+  function openAdminModal(){
+    adminLoginForm.reset();
+    adminLoginStatus.textContent = '';
+    adminLoginStatus.className = 'status-msg';
+    adminModal.classList.remove('hidden');
+  }
+  function closeAdminModal(){ adminModal.classList.add('hidden'); }
+
+  adminBtn.addEventListener('click', async ()=>{
+    if(!dbClient){
+      alert('Base de données non configurée : vérifie le fichier supabase_access.txt.');
+      return;
+    }
+    if(isAdmin){
+      await dbClient.auth.signOut();
+    }else{
+      openAdminModal();
+    }
+  });
+  adminModalClose.addEventListener('click', closeAdminModal);
+  adminModal.addEventListener('click', (e)=>{ if(e.target === adminModal) closeAdminModal(); });
+
+  adminLoginForm.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const email = document.getElementById('admin-email').value.trim();
+    const password = document.getElementById('admin-password').value;
+    adminLoginSubmit.disabled = true;
+    adminLoginStatus.textContent = 'Connexion...';
+    adminLoginStatus.className = 'status-msg';
+    try{
+      const { error } = await dbClient.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+      closeAdminModal();
+    }catch(err){
+      console.error(err);
+      adminLoginStatus.textContent = 'Connexion refusée : email ou mot de passe incorrect.';
+      adminLoginStatus.className = 'status-msg err';
+    }finally{
+      adminLoginSubmit.disabled = false;
+    }
+  });
 
   // ---------- RSVP storage ----------
   const form = document.getElementById('rsvp-form');
@@ -773,7 +1033,7 @@
       const daysLabel = g.days.length === 8
         ? 'Toute la semaine'
         : g.days.map(d=>d+' juil.').join(', ');
-      return `<div class="guest-row">
+      return `<div class="guest-row" data-id="${g.id}">
         <div>
           <div class="who">${escapeHtml(g.name)}</div>
           <div class="days">${daysLabel}</div>
@@ -781,11 +1041,26 @@
         <div style="display:flex; align-items:center; gap:8px;">
           ${g.sleep ? '<span class="sleep-tag">⛺ dort en tente</span>' : ''}
           <span class="cnt">${g.count} pers.</span>
+          <button type="button" class="guest-delete-btn" data-id="${g.id}" title="Supprimer cette réponse">🗑</button>
         </div>
       </div>`;
     }).join('');
     totalCount.textContent = total + (total>1 ? ' personnes' : ' personne');
   }
+
+  guestList.addEventListener('click', async (e)=>{
+    const btn = e.target.closest('.guest-delete-btn');
+    if(!btn || !isAdmin) return;
+    if(!confirm('Supprimer cette réponse de présence ?')) return;
+    try{
+      const { error } = await dbClient.from('guests').delete().eq('id', btn.dataset.id);
+      if(error) throw error;
+      await refreshGuestList();
+    }catch(err){
+      console.error(err);
+      alert('Erreur lors de la suppression.');
+    }
+  });
 
   function escapeHtml(str){
     const d = document.createElement('div');
@@ -801,6 +1076,7 @@
   // ---------- Lodgings (logements) ----------
   const lodgingOnplaceEl = document.getElementById('lodging-onplace');
   const lodgingNearbyEl = document.getElementById('lodging-nearby');
+  let currentLodgings = [];
 
   async function loadLodgings(){
     if(!dbClient) return [];
@@ -814,7 +1090,11 @@
 
   function lodgeCardHtml(l){
     const cls = 'lodge-card' + (l.priority ? ' priority' : '');
-    return `<div class="${cls}">
+    return `<div class="${cls}" data-id="${l.id}">
+      <div class="lodge-admin-actions">
+        <button type="button" class="edit-lodging" data-id="${l.id}" title="Modifier">✎</button>
+        <button type="button" class="delete-lodging" data-id="${l.id}" title="Supprimer">🗑</button>
+      </div>
       <div class="lodge-icon">${escapeHtml(l.icon || '🏠')}</div>
       <div>
         <h4>${escapeHtml(l.title)}</h4>
@@ -826,6 +1106,7 @@
   }
 
   function renderLodgings(lodgings){
+    currentLodgings = lodgings;
     const onplace = lodgings.filter(l=>l.category === 'onplace');
     const nearby = lodgings.filter(l=>l.category === 'nearby');
 
@@ -848,6 +1129,99 @@
     const lodgings = await loadLodgings();
     renderLodgings(lodgings);
   }
+
+  // ---------- Admin : ajout / édition / suppression de logement ----------
+  const lodgingModal = document.getElementById('lodging-modal');
+  const lodgingModalClose = document.getElementById('lodging-modal-close');
+  const lodgingModalTitle = document.getElementById('lodging-modal-title');
+  const lodgingForm = document.getElementById('lodging-form');
+  const lodgingFormStatus = document.getElementById('lodging-form-status');
+  const lodgingFormSubmit = document.getElementById('lodging-form-submit');
+
+  function openLodgingModal(lodging, defaultCategory){
+    lodgingForm.reset();
+    lodgingFormStatus.textContent = '';
+    lodgingFormStatus.className = 'status-msg';
+    document.getElementById('lf-id').value = lodging ? lodging.id : '';
+    document.getElementById('lf-category').value = lodging ? lodging.category : (defaultCategory || 'onplace');
+    document.getElementById('lf-icon').value = lodging ? (lodging.icon || '') : '';
+    document.getElementById('lf-title').value = lodging ? lodging.title : '';
+    document.getElementById('lf-meta').value = lodging ? (lodging.meta || '') : '';
+    document.getElementById('lf-description').value = lodging ? lodging.description : '';
+    document.getElementById('lf-tag').value = lodging ? (lodging.tag || '') : '';
+    document.getElementById('lf-priority').checked = lodging ? !!lodging.priority : false;
+    document.getElementById('lf-sort').value = lodging ? (lodging.sort_order ?? 0) : 0;
+    lodgingModalTitle.textContent = lodging ? 'Modifier le logement' : 'Ajouter un logement';
+    lodgingModal.classList.remove('hidden');
+  }
+  function closeLodgingModal(){ lodgingModal.classList.add('hidden'); }
+
+  lodgingModalClose.addEventListener('click', closeLodgingModal);
+  lodgingModal.addEventListener('click', (e)=>{ if(e.target === lodgingModal) closeLodgingModal(); });
+
+  document.querySelectorAll('.add-lodging-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(!isAdmin) return;
+      openLodgingModal(null, btn.dataset.category);
+    });
+  });
+
+  async function handleLodgingCardClick(e){
+    const editBtn = e.target.closest('.edit-lodging');
+    const deleteBtn = e.target.closest('.delete-lodging');
+    if(!isAdmin || (!editBtn && !deleteBtn)) return;
+
+    if(editBtn){
+      const lodging = currentLodgings.find(l=>String(l.id) === editBtn.dataset.id);
+      if(lodging) openLodgingModal(lodging);
+    }
+    if(deleteBtn){
+      if(!confirm('Supprimer ce logement ?')) return;
+      try{
+        const { error } = await dbClient.from('lodgings').delete().eq('id', deleteBtn.dataset.id);
+        if(error) throw error;
+        await refreshLodgings();
+      }catch(err){
+        console.error(err);
+        alert('Erreur lors de la suppression.');
+      }
+    }
+  }
+  lodgingOnplaceEl.addEventListener('click', handleLodgingCardClick);
+  lodgingNearbyEl.addEventListener('click', handleLodgingCardClick);
+
+  lodgingForm.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const id = document.getElementById('lf-id').value;
+    const payload = {
+      category: document.getElementById('lf-category').value,
+      icon: document.getElementById('lf-icon').value.trim() || '🏠',
+      title: document.getElementById('lf-title').value.trim(),
+      meta: document.getElementById('lf-meta').value.trim() || null,
+      description: document.getElementById('lf-description').value.trim(),
+      tag: document.getElementById('lf-tag').value.trim() || null,
+      priority: document.getElementById('lf-priority').checked,
+      sort_order: Number(document.getElementById('lf-sort').value) || 0
+    };
+
+    lodgingFormSubmit.disabled = true;
+    lodgingFormStatus.textContent = 'Enregistrement...';
+    lodgingFormStatus.className = 'status-msg';
+    try{
+      const { error } = id
+        ? await dbClient.from('lodgings').update(payload).eq('id', id)
+        : await dbClient.from('lodgings').insert([payload]);
+      if(error) throw error;
+      closeLodgingModal();
+      await refreshLodgings();
+    }catch(err){
+      console.error(err);
+      lodgingFormStatus.textContent = 'Erreur lors de l\'enregistrement.';
+      lodgingFormStatus.className = 'status-msg err';
+    }finally{
+      lodgingFormSubmit.disabled = false;
+    }
+  });
 
   form.addEventListener('submit', async (e)=>{
     e.preventDefault();

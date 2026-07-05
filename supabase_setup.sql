@@ -48,8 +48,6 @@ create table lodgings (
 );
 alter table lodgings enable row level security;
 create policy "public read lodgings" on lodgings for select using (true);
--- Pas de policy d'insert/update publique : les logements se gèrent
--- depuis l'éditeur de table Supabase (Table Editor), pas depuis le site.
 
 -- Exemple de données pour démarrer (à adapter ou supprimer) :
 insert into lodgings (category, icon, title, meta, description, tag, priority, sort_order) values
@@ -71,3 +69,41 @@ insert into lodgings (category, icon, title, meta, description, tag, priority, s
 ('nearby', '🏨', 'Hôtel du Centre', '≈ 20 min en voiture · option la plus simple',
  'Solution pratique si tu arrives tard ou repars tôt, sans réservation à l''avance nécessaire.',
  null, false, 4);
+
+
+-- ============================================================
+-- Droits d'écriture admin (via Supabase Auth)
+-- ============================================================
+-- Le rôle Postgres "authenticated" correspond à n'importe quel utilisateur
+-- connecté via Supabase Auth. Comme les inscriptions publiques doivent être
+-- désactivées (voir plus bas), "authenticated" = l'admin, en pratique.
+
+-- Logements : l'admin peut ajouter, modifier, supprimer.
+create policy "admin insert lodgings" on lodgings
+  for insert to authenticated with check (true);
+create policy "admin update lodgings" on lodgings
+  for update to authenticated using (true) with check (true);
+create policy "admin delete lodgings" on lodgings
+  for delete to authenticated using (true);
+
+-- Présence : tout le monde peut répondre (insert déjà créé plus haut),
+-- mais seul l'admin peut corriger ou supprimer une réponse.
+create policy "admin update guests" on guests
+  for update to authenticated using (true) with check (true);
+create policy "admin delete guests" on guests
+  for delete to authenticated using (true);
+
+
+-- ============================================================
+-- Créer le compte admin
+-- ============================================================
+-- 1. Dans le dashboard Supabase, va dans "Authentication > Providers > Email"
+--    et désactive "Allow new users to sign up". C'est important : sans ça,
+--    n'importe qui pourrait créer un compte et obtenir les droits admin
+--    puisque les policies ci-dessus se basent juste sur "authenticated".
+-- 2. Va dans "Authentication > Users" et clique sur "Add user" (ou "Invite
+--    user") pour créer le compte admin manuellement, avec l'email et le mot
+--    de passe de ton choix. Coche "Auto Confirm User" si l'option existe,
+--    pour ne pas avoir besoin de valider par email.
+-- 3. Utilise cet email et ce mot de passe sur le bouton "Admin" du site.
+-- Tu peux créer plusieurs comptes admin de cette façon si besoin.

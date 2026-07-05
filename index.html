@@ -594,65 +594,13 @@
     <p class="section-lead">Deux façons de dormir sur place, et quelques options à proximité si tu préfères être au calme.</p>
 
     <p class="subsection-title">Sur place</p>
-    <div class="lodging-grid">
-      <div class="lodge-card priority">
-        <div class="lodge-icon">⛺</div>
-        <div>
-          <h4>Camper sous tente</h4>
-          <div class="lodge-meta">Sur place · Route de la Tuque Haute</div>
-          <p>Possibilité de planter la tente directement sur place, au milieu de la fête. Amène ton matériel de camping.</p>
-        </div>
-      </div>
-      <div class="lodge-card priority">
-        <div class="lodge-icon">🛌</div>
-        <div>
-          <h4>7 chambres sur place</h4>
-          <div class="lodge-meta">Sur place · nombre limité</div>
-          <p>7 chambres disponibles directement sur place. Priorité donnée aux familles et aux personnes qui
-          restent pour la semaine complète. Places limitées — <strong>contacte-nous directement</strong> pour réserver.</p>
-          <span class="tag">Réservation par contact direct</span>
-        </div>
-      </div>
+    <div class="lodging-grid" id="lodging-onplace">
+      <p class="empty-note">Chargement des logements...</p>
     </div>
 
     <p class="subsection-title">À proximité</p>
-    <div class="lodging-note">
-      Liste d'exemple — dis-moi les vrais logements (noms, distances, tarifs, liens) et je mets cette
-      page à jour avec les bonnes informations.
-    </div>
-    <div class="lodging-grid">
-      <div class="lodge-card">
-        <div class="lodge-icon">⛺</div>
-        <div>
-          <h4>Camping du Lac</h4>
-          <div class="lodge-meta">≈ 10 min à pied · emplacements &amp; mobil-homes</div>
-          <p>Camping familial avec sanitaires, à distance de marche du lieu de fête. À réserver tôt en juillet.</p>
-        </div>
-      </div>
-      <div class="lodge-card">
-        <div class="lodge-icon">🏡</div>
-        <div>
-          <h4>Gîte des Tilleuls</h4>
-          <div class="lodge-meta">≈ 5 min en voiture · 6 personnes</div>
-          <p>Gîte entier à louer pour un groupe, cuisine équipée. Idéal pour un groupe d'amis qui veut rester ensemble.</p>
-        </div>
-      </div>
-      <div class="lodge-card">
-        <div class="lodge-icon">🛏️</div>
-        <div>
-          <h4>Chambres d'hôtes Les Figuiers</h4>
-          <div class="lodge-meta">≈ 15 min en voiture · 3 chambres</div>
-          <p>Chambres d'hôtes calmes avec petit-déjeuner inclus, bon rapport qualité-prix.</p>
-        </div>
-      </div>
-      <div class="lodge-card">
-        <div class="lodge-icon">🏨</div>
-        <div>
-          <h4>Hôtel du Centre</h4>
-          <div class="lodge-meta">≈ 20 min en voiture · option la plus simple</div>
-          <p>Solution pratique si tu arrives tard ou repars tôt, sans réservation à l'avance nécessaire.</p>
-        </div>
-      </div>
+    <div class="lodging-grid" id="lodging-nearby">
+      <p class="empty-note">Chargement des logements...</p>
     </div>
   </section>
 
@@ -757,22 +705,14 @@
   setInterval(updateCountdown, 1000);
 
   // ---------- Configuration Supabase ----------
+  // Toutes les requêtes SQL de configuration (création des tables "guests" et
+  // "lodgings", policies, données d'exemple) sont dans le fichier dédié
+  // "supabase_setup.sql" fourni à côté de cette page — voir ce fichier pour
+  // la marche à suivre complète.
+  //
+  // Résumé rapide :
   // 1. Crée un projet gratuit sur https://supabase.com
-  // 2. Dans "SQL Editor", exécute :
-  //
-  //    create table guests (
-  //      id uuid primary key default gen_random_uuid(),
-  //      name text not null,
-  //      count int not null default 1,
-  //      msg text,
-  //      sleep boolean default false,
-  //      days int[] not null,
-  //      created_at timestamptz default now()
-  //    );
-  //    alter table guests enable row level security;
-  //    create policy "public read" on guests for select using (true);
-  //    create policy "public insert" on guests for insert with check (true);
-  //
+  // 2. Exécute le contenu de supabase_setup.sql dans le "SQL Editor"
   // 3. Dans "Project Settings > API", copie l'URL du projet et la clé "anon public"
   //    dans le fichier "supabase_access.txt" placé à côté de cette page HTML :
   //    { "supabase_url": "https://xxxx.supabase.co", "supabase_anon_key": "xxxx", "invite_code": "xxxx" }
@@ -858,6 +798,57 @@
     renderGuests(guests);
   }
 
+  // ---------- Lodgings (logements) ----------
+  const lodgingOnplaceEl = document.getElementById('lodging-onplace');
+  const lodgingNearbyEl = document.getElementById('lodging-nearby');
+
+  async function loadLodgings(){
+    if(!dbClient) return [];
+    const { data, error } = await dbClient
+      .from('lodgings')
+      .select('*')
+      .order('sort_order', { ascending: true });
+    if(error){ console.error(error); return []; }
+    return data;
+  }
+
+  function lodgeCardHtml(l){
+    const cls = 'lodge-card' + (l.priority ? ' priority' : '');
+    return `<div class="${cls}">
+      <div class="lodge-icon">${escapeHtml(l.icon || '🏠')}</div>
+      <div>
+        <h4>${escapeHtml(l.title)}</h4>
+        ${l.meta ? `<div class="lodge-meta">${escapeHtml(l.meta)}</div>` : ''}
+        <p>${escapeHtml(l.description)}</p>
+        ${l.tag ? `<span class="tag">${escapeHtml(l.tag)}</span>` : ''}
+      </div>
+    </div>`;
+  }
+
+  function renderLodgings(lodgings){
+    const onplace = lodgings.filter(l=>l.category === 'onplace');
+    const nearby = lodgings.filter(l=>l.category === 'nearby');
+
+    lodgingOnplaceEl.innerHTML = onplace.length
+      ? onplace.map(lodgeCardHtml).join('')
+      : '<p class="empty-note">Aucun logement sur place renseigné pour l\'instant.</p>';
+
+    lodgingNearbyEl.innerHTML = nearby.length
+      ? nearby.map(lodgeCardHtml).join('')
+      : '<p class="empty-note">Aucun logement à proximité renseigné pour l\'instant.</p>';
+  }
+
+  async function refreshLodgings(){
+    if(!dbClient){
+      const msg = '<p class="empty-note">Base de données non configurée : vérifie le fichier supabase_access.txt.</p>';
+      lodgingOnplaceEl.innerHTML = msg;
+      lodgingNearbyEl.innerHTML = msg;
+      return;
+    }
+    const lodgings = await loadLodgings();
+    renderLodgings(lodgings);
+  }
+
   form.addEventListener('submit', async (e)=>{
     e.preventDefault();
 
@@ -920,6 +911,7 @@
       statusMsg.className = 'status-msg err';
     }
     refreshGuestList();
+    refreshLodgings();
   })();
 </script>
 

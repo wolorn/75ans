@@ -1,0 +1,5 @@
+{
+	"supabase_url": "https://zafxwpajukvnedmdptit.supabase.co",
+	"supabase_anon_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphZnh3cGFqdWt2bmVkbWRwdGl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNTQwMzIsImV4cCI6MjA5ODczMDAzMn0.sEdQdy-LHUdmQikC-VFG31BOHnZ3xVg5k36zDCewjew",
+	"invite_code": "VieillirCEstDansLaTete"
+}

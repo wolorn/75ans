@@ -569,11 +569,6 @@
           <label for="f-sleep" style="margin:0;">Je dors en tente</label>
         </div>
 
-        <div class="field">
-          <label for="f-code">Code d'invitation</label>
-          <input type="text" id="f-code" required placeholder="Donné dans le faire-part">
-        </div>
-
         <button type="submit" class="submit" id="submit-btn">Envoyer ma réponse</button>
         <div class="status-msg" id="status-msg" role="status"></div>
       </form>
@@ -776,15 +771,12 @@
   //
   // 3. Dans "Project Settings > API", copie l'URL du projet et la clé "anon public"
   //    dans le fichier "supabase_access.txt" placé à côté de cette page HTML :
-  //    { "supabase_url": "https://xxxx.supabase.co", "supabase_anon_key": "xxxx", "invite_code": "xxxx" }
-  //    Le champ "invite_code" est un simple mot de passe partagé en famille (pas une
-  //    vraie sécurité) pour décourager le spam sur le formulaire.
+  //    { "supabase_url": "https://xxxx.supabase.co", "supabase_anon_key": "xxxx" }
   //
   // Remarque : le fichier est chargé via fetch(), il faut donc servir la page en
   // http(s) (GitHub Pages, un serveur local, etc.) — ouvrir le .html directement
   // depuis le disque (file://) ne fonctionnera pas.
   let dbClient = null;
-  let inviteCode = null;
 
   async function loadSupabaseConfig(){
     try{
@@ -793,7 +785,6 @@
       const cfg = await res.json();
       if(!cfg.supabase_url || !cfg.supabase_anon_key) throw new Error('champs manquants');
       dbClient = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
-      inviteCode = cfg.invite_code || null;
     }catch(e){
       console.error('Config Supabase invalide ou introuvable:', e);
       dbClient = null;
@@ -872,7 +863,6 @@
     const count = document.getElementById('f-count').value;
     const msg = document.getElementById('f-msg').value.trim();
     const sleep = document.getElementById('f-sleep').checked;
-    const code = document.getElementById('f-code').value.trim();
     const checked = Array.from(daysGrid.querySelectorAll('input:checked')).map(i=>Number(i.value));
 
     if(!name){
@@ -882,11 +872,6 @@
     }
     if(checked.length === 0){
       statusMsg.textContent = 'Coche au moins un jour de présence.';
-      statusMsg.className = 'status-msg err';
-      return;
-    }
-    if(inviteCode && code.toLowerCase() !== inviteCode.toLowerCase()){
-      statusMsg.textContent = 'Code d\'invitation incorrect.';
       statusMsg.className = 'status-msg err';
       return;
     }

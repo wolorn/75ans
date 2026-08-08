@@ -14,6 +14,26 @@
   const EVENT_START = new Date(2027,6,10,0,0,0);
   const dayNumbers = [10,11,12,13,14,15,16,17];
 
+  const RSVP_DEADLINE = new Date(EVENT_START);
+  RSVP_DEADLINE.setMonth(RSVP_DEADLINE.getMonth() - 2);
+
+  function applyRsvpDeadline(){
+    const fieldset = document.getElementById('rsvp-fieldset');
+    const deadlineMsg = document.getElementById('deadline-msg');
+    const deadlineLabel = RSVP_DEADLINE.toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'});
+    const now = new Date();
+
+    if(now >= RSVP_DEADLINE){
+      fieldset.disabled = true;
+      deadlineMsg.textContent = `Le formulaire de présence est fermé depuis le ${deadlineLabel} (2 mois avant l'événement).`;
+      deadlineMsg.classList.add('show','closed');
+    }else{
+      deadlineMsg.textContent = `Merci de répondre avant le ${deadlineLabel} — le formulaire se fermera automatiquement 2 mois avant l'événement.`;
+      deadlineMsg.classList.add('show');
+    }
+  }
+  applyRsvpDeadline();
+
   function fmtWeekday(d){
     return new Date(2027,6,d).toLocaleDateString('fr-FR',{weekday:'short'}).replace('.','');
   }
@@ -103,7 +123,7 @@
   // 1. Crée un projet gratuit sur https://supabase.com
   // 2. Exécute le contenu de supabase_setup.sql dans le "SQL Editor"
   // 3. Dans "Project Settings > API", copie l'URL du projet et la clé "anon public"
-  //    dans le fichier "supabase_access.txt" placé à côté de cette page HTML :
+  //    dans le fichier "config.json" placé à côté de cette page HTML :
   //    { "supabase_url": "https://xxxx.supabase.co", "supabase_anon_key": "xxxx", "invite_code": "xxxx" }
   //    Le champ "invite_code" est un simple mot de passe partagé en famille (pas une
   //    vraie sécurité) pour décourager le spam sur le formulaire.
@@ -119,9 +139,9 @@
   let inviteCode = null;
   let isAdmin = false;
 
-  async function loadSupabaseConfig(){
+  async function loadSiteConfig(){
     try{
-      const res = await fetch('supabase_access.txt');
+      const res = await fetch('config.json');
       if(!res.ok) throw new Error('fichier introuvable');
       const cfg = await res.json();
       if(!cfg.supabase_url || !cfg.supabase_anon_key) throw new Error('champs manquants');
@@ -166,7 +186,7 @@
 
   adminBtn.addEventListener('click', async ()=>{
     if(!dbClient){
-      alert('Base de données non configurée : vérifie le fichier supabase_access.txt.');
+      alert('Base de données non configurée : vérifie le fichier config.json.');
       return;
     }
     if(isAdmin){
@@ -321,7 +341,7 @@
 
   async function refreshLodgings(){
     if(!dbClient){
-      const msg = '<p class="empty-note">Base de données non configurée : vérifie le fichier supabase_access.txt.</p>';
+      const msg = '<p class="empty-note">Base de données non configurée : vérifie le fichier config.json.</p>';
       lodgingOnplaceEl.innerHTML = msg;
       lodgingNearbyEl.innerHTML = msg;
       return;
@@ -429,7 +449,7 @@
     e.preventDefault();
 
     if(!dbClient){
-      statusMsg.textContent = 'Base de données non configurée : vérifie le fichier supabase_access.txt.';
+      statusMsg.textContent = 'Base de données non configurée : vérifie le fichier config.json.';
       statusMsg.className = 'status-msg err';
       return;
     }
@@ -522,7 +542,7 @@
 
   async function refreshArticles(){
     if(!dbClient){
-      articleListEl.innerHTML = '<p class="empty-note">Base de données non configurée : vérifie le fichier supabase_access.txt.</p>';
+      articleListEl.innerHTML = '<p class="empty-note">Base de données non configurée : vérifie le fichier config.json.</p>';
       return;
     }
     const articles = await loadArticles();
@@ -615,9 +635,9 @@
   });
 
   (async function initApp(){
-    await loadSupabaseConfig();
+    await loadSiteConfig();
     if(!dbClient){
-      statusMsg.textContent = 'Base de données non configurée : vérifie le fichier supabase_access.txt.';
+      statusMsg.textContent = 'Base de données non configurée : vérifie le fichier config.json.';
       statusMsg.className = 'status-msg err';
     }
     refreshGuestList();

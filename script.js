@@ -14,8 +14,18 @@
   const EVENT_START = new Date(2027,6,10,0,0,0);
   const dayNumbers = [10,11,12,13,14,15,16,17];
 
-  const RSVP_DEADLINE = new Date(EVENT_START);
+  // Date limite par défaut : 2 mois avant le début de l'événement.
+  // Peut être surchargée via "end_date_rsvp" dans config.json (format "YYYY-MM-DD").
+  let RSVP_DEADLINE = new Date(EVENT_START);
   RSVP_DEADLINE.setMonth(RSVP_DEADLINE.getMonth() - 2);
+
+  function parseIsoDateLocal(str){
+    if(typeof str !== 'string') return null;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str.trim());
+    if(!m) return null;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 0, 0, 0);
+    return isNaN(d.getTime()) ? null : d;
+  }
 
   function applyRsvpDeadline(){
     const fieldset = document.getElementById('rsvp-fieldset');
@@ -25,14 +35,13 @@
 
     if(now >= RSVP_DEADLINE){
       fieldset.disabled = true;
-      deadlineMsg.textContent = `Le formulaire de présence est fermé depuis le ${deadlineLabel} (2 mois avant l'événement).`;
+      deadlineMsg.textContent = `Le formulaire de présence est fermé depuis le ${deadlineLabel}.`;
       deadlineMsg.classList.add('show','closed');
     }else{
-      deadlineMsg.textContent = `Merci de répondre avant le ${deadlineLabel} — le formulaire se fermera automatiquement 2 mois avant l'événement.`;
+      deadlineMsg.textContent = `Merci de répondre avant le ${deadlineLabel} — le formulaire se fermera automatiquement à cette date.`;
       deadlineMsg.classList.add('show');
     }
   }
-  applyRsvpDeadline();
 
   function fmtWeekday(d){
     return new Date(2027,6,d).toLocaleDateString('fr-FR',{weekday:'short'}).replace('.','');
@@ -125,12 +134,15 @@
   // 3. Dans "Project Settings > API", copie l'URL du projet et la clé "anon public"
   //    dans le fichier "config.json" placé à côté de cette page HTML :
   //    { "supabase_url": "https://xxxx.supabase.co", "supabase_anon_key": "xxxx",
-  //      "invite_code": "xxxx", "traffic_ping_count": 1 }
+  //      "invite_code": "xxxx", "traffic_ping_count": 1, "end_date_rsvp": "2027-05-10" }
   //    Le champ "invite_code" est un simple mot de passe partagé en famille (pas une
   //    vraie sécurité) pour décourager le spam sur le formulaire.
   //    Le champ "traffic_ping_count" (optionnel, défaut 1) définit combien de lignes
   //    sont insérées dans "traffic_logging" à chaque chargement de la page, pour
   //    maintenir le projet Supabase gratuit actif.
+  //    Le champ "end_date_rsvp" (optionnel, format "YYYY-MM-DD") permet de surcharger
+  //    la date limite du formulaire de présence. Par défaut : 2 mois avant l'événement
+  //    (10 mai 2027).
   //
   // Remarque : le fichier est chargé via fetch(), il faut donc servir la page en
   // http(s) (GitHub Pages, un serveur local, etc.) — ouvrir le .html directement
@@ -154,6 +166,9 @@
       inviteCode = cfg.invite_code || null;
       const parsedCount = parseInt(cfg.traffic_ping_count, 10);
       trafficPingCount = (Number.isFinite(parsedCount) && parsedCount > 0) ? parsedCount : 1;
+
+      const overrideDeadline = parseIsoDateLocal(cfg.end_date_rsvp);
+      if(overrideDeadline) RSVP_DEADLINE = overrideDeadline;
 
       const { data: { session } } = await dbClient.auth.getSession();
       applyAdminState(session);
@@ -670,6 +685,7 @@
 
   (async function initApp(){
     await loadSiteConfig();
+    applyRsvpDeadline();
     if(!dbClient){
       statusMsg.textContent = 'Base de données non configurée : vérifie le fichier config.json.';
       statusMsg.className = 'status-msg err';

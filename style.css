@@ -492,6 +492,25 @@
   .status-msg{margin-top:14px; font-size:14px; color:#4E9B78;}
   .status-msg.err{color:#D2544A;}
 
+  #deadline-msg{
+    display:none;
+    margin:0 0 16px 0;
+    padding:10px 14px;
+    border-radius:8px;
+    background:var(--card-tint);
+    border:1px solid var(--border);
+    font-size:13px;
+    color:var(--ink-dim);
+  }
+  #deadline-msg.show{display:block;}
+  #deadline-msg.closed{
+    background:#FBEAE8;
+    border-color:#D2544A;
+    color:#B84238;
+    font-weight:600;
+  }
+  #rsvp-fieldset:disabled{opacity:.45; pointer-events:none;}
+
   /* guest list */
   .guest-summary{
     display:flex; justify-content:space-between; align-items:baseline;

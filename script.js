@@ -14,6 +14,35 @@
   const EVENT_START = new Date(2027,6,10,0,0,0);
   const dayNumbers = [10,11,12,13,14,15,16,17];
 
+  // Date limite par défaut : 2 mois avant le début de l'événement.
+  // Peut être surchargée via "end_date_rsvp" dans config.json (format "YYYY-MM-DD").
+  let RSVP_DEADLINE = new Date(EVENT_START);
+  RSVP_DEADLINE.setMonth(RSVP_DEADLINE.getMonth() - 2);
+
+  function parseIsoDateLocal(str){
+    if(typeof str !== 'string') return null;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str.trim());
+    if(!m) return null;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 0, 0, 0);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function applyRsvpDeadline(){
+    const fieldset = document.getElementById('rsvp-fieldset');
+    const deadlineMsg = document.getElementById('deadline-msg');
+    const deadlineLabel = RSVP_DEADLINE.toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'});
+    const now = new Date();
+
+    if(now >= RSVP_DEADLINE){
+      fieldset.disabled = true;
+      deadlineMsg.textContent = `Le formulaire de présence est fermé depuis le ${deadlineLabel}.`;
+      deadlineMsg.classList.add('show','closed');
+    }else{
+      deadlineMsg.textContent = `Merci de répondre avant le ${deadlineLabel} — le formulaire se fermera automatiquement à cette date.`;
+      deadlineMsg.classList.add('show');
+    }
+  }
+
   function fmtWeekday(d){
     return new Date(2027,6,d).toLocaleDateString('fr-FR',{weekday:'short'}).replace('.','');
   }
@@ -103,10 +132,17 @@
   // 1. Crée un projet gratuit sur https://supabase.com
   // 2. Exécute le contenu de supabase_setup.sql dans le "SQL Editor"
   // 3. Dans "Project Settings > API", copie l'URL du projet et la clé "anon public"
-  //    dans le fichier "supabase_access.txt" placé à côté de cette page HTML :
-  //    { "supabase_url": "https://xxxx.supabase.co", "supabase_anon_key": "xxxx", "invite_code": "xxxx" }
+  //    dans le fichier "config.json" placé à côté de cette page HTML :
+  //    { "supabase_url": "https://xxxx.supabase.co", "supabase_anon_key": "xxxx",
+  //      "invite_code": "xxxx", "traffic_ping_count": 1, "end_date_rsvp": "2027-05-10" }
   //    Le champ "invite_code" est un simple mot de passe partagé en famille (pas une
   //    vraie sécurité) pour décourager le spam sur le formulaire.
+  //    Le champ "traffic_ping_count" (optionnel, défaut 1) définit combien de lignes
+  //    sont insérées dans "traffic_logging" à chaque chargement de la page, pour
+  //    maintenir le projet Supabase gratuit actif.
+  //    Le champ "end_date_rsvp" (optionnel, format "YYYY-MM-DD") permet de surcharger
+  //    la date limite du formulaire de présence. Par défaut : 2 mois avant l'événement
+  //    (10 mai 2027).
   //
   // Remarque : le fichier est chargé via fetch(), il faut donc servir la page en
   // http(s) (GitHub Pages, un serveur local, etc.) — ouvrir le .html directement
@@ -118,15 +154,21 @@
   let dbClient = null;
   let inviteCode = null;
   let isAdmin = false;
+  let trafficPingCount = 1;
 
-  async function loadSupabaseConfig(){
+  async function loadSiteConfig(){
     try{
-      const res = await fetch('supabase_access.txt');
+      const res = await fetch('config.json');
       if(!res.ok) throw new Error('fichier introuvable');
       const cfg = await res.json();
       if(!cfg.supabase_url || !cfg.supabase_anon_key) throw new Error('champs manquants');
       dbClient = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
       inviteCode = cfg.invite_code || null;
+      const parsedCount = parseInt(cfg.traffic_ping_count, 10);
+      trafficPingCount = (Number.isFinite(parsedCount) && parsedCount > 0) ? parsedCount : 1;
+
+      const overrideDeadline = parseIsoDateLocal(cfg.end_date_rsvp);
+      if(overrideDeadline) RSVP_DEADLINE = overrideDeadline;
 
       const { data: { session } } = await dbClient.auth.getSession();
       applyAdminState(session);
@@ -141,6 +183,33 @@
       dbClient = null;
     }
   }
+
+  // ---------- Traffic logging (garde le projet Supabase gratuit actif) ----------
+  function getClientId(){
+    let id = localStorage.getItem('client_id');
+    if(!id){
+      id = (crypto.randomUUID) ? crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
+            const r = Math.random()*16|0;
+            return (c==='x' ? r : (r&0x3|0x8)).toString(16);
+          });
+      localStorage.setItem('client_id', id);
+    }
+    return id;
+  }
+
+  async function logTraffic(){
+    if(!dbClient) return;
+    try{
+      const clientId = getClientId();
+      const rows = Array.from({length: trafficPingCount}, ()=>({ client_id: clientId }));
+      const { error } = await dbClient.from('traffic_logging').insert(rows);
+      if(error) console.error('Traffic logging error:', error);
+    }catch(e){
+      console.error('Traffic logging error:', e);
+    }
+  }
+
 
   // ---------- Admin : connexion / déconnexion ----------
   const adminBtn = document.getElementById('admin-btn');
@@ -166,7 +235,7 @@
 
   adminBtn.addEventListener('click', async ()=>{
     if(!dbClient){
-      alert('Base de données non configurée : vérifie le fichier supabase_access.txt.');
+      alert('Base de données non configurée : vérifie le fichier config.json.');
       return;
     }
     if(isAdmin){
@@ -321,7 +390,7 @@
 
   async function refreshLodgings(){
     if(!dbClient){
-      const msg = '<p class="empty-note">Base de données non configurée : vérifie le fichier supabase_access.txt.</p>';
+      const msg = '<p class="empty-note">Base de données non configurée : vérifie le fichier config.json.</p>';
       lodgingOnplaceEl.innerHTML = msg;
       lodgingNearbyEl.innerHTML = msg;
       return;
@@ -429,7 +498,7 @@
     e.preventDefault();
 
     if(!dbClient){
-      statusMsg.textContent = 'Base de données non configurée : vérifie le fichier supabase_access.txt.';
+      statusMsg.textContent = 'Base de données non configurée : vérifie le fichier config.json.';
       statusMsg.className = 'status-msg err';
       return;
     }
@@ -522,7 +591,7 @@
 
   async function refreshArticles(){
     if(!dbClient){
-      articleListEl.innerHTML = '<p class="empty-note">Base de données non configurée : vérifie le fichier supabase_access.txt.</p>';
+      articleListEl.innerHTML = '<p class="empty-note">Base de données non configurée : vérifie le fichier config.json.</p>';
       return;
     }
     const articles = await loadArticles();
@@ -615,11 +684,13 @@
   });
 
   (async function initApp(){
-    await loadSupabaseConfig();
+    await loadSiteConfig();
+    applyRsvpDeadline();
     if(!dbClient){
-      statusMsg.textContent = 'Base de données non configurée : vérifie le fichier supabase_access.txt.';
+      statusMsg.textContent = 'Base de données non configurée : vérifie le fichier config.json.';
       statusMsg.className = 'status-msg err';
     }
+    logTraffic();
     refreshGuestList();
     refreshLodgings();
     refreshArticles();

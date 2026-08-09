@@ -124,9 +124,13 @@
   // 2. Exécute le contenu de supabase_setup.sql dans le "SQL Editor"
   // 3. Dans "Project Settings > API", copie l'URL du projet et la clé "anon public"
   //    dans le fichier "config.json" placé à côté de cette page HTML :
-  //    { "supabase_url": "https://xxxx.supabase.co", "supabase_anon_key": "xxxx", "invite_code": "xxxx" }
+  //    { "supabase_url": "https://xxxx.supabase.co", "supabase_anon_key": "xxxx",
+  //      "invite_code": "xxxx", "traffic_ping_count": 1 }
   //    Le champ "invite_code" est un simple mot de passe partagé en famille (pas une
   //    vraie sécurité) pour décourager le spam sur le formulaire.
+  //    Le champ "traffic_ping_count" (optionnel, défaut 1) définit combien de lignes
+  //    sont insérées dans "traffic_logging" à chaque chargement de la page, pour
+  //    maintenir le projet Supabase gratuit actif.
   //
   // Remarque : le fichier est chargé via fetch(), il faut donc servir la page en
   // http(s) (GitHub Pages, un serveur local, etc.) — ouvrir le .html directement
@@ -138,6 +142,7 @@
   let dbClient = null;
   let inviteCode = null;
   let isAdmin = false;
+  let trafficPingCount = 1;
 
   async function loadSiteConfig(){
     try{
@@ -147,6 +152,8 @@
       if(!cfg.supabase_url || !cfg.supabase_anon_key) throw new Error('champs manquants');
       dbClient = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
       inviteCode = cfg.invite_code || null;
+      const parsedCount = parseInt(cfg.traffic_ping_count, 10);
+      trafficPingCount = (Number.isFinite(parsedCount) && parsedCount > 0) ? parsedCount : 1;
 
       const { data: { session } } = await dbClient.auth.getSession();
       applyAdminState(session);
@@ -161,6 +168,33 @@
       dbClient = null;
     }
   }
+
+  // ---------- Traffic logging (garde le projet Supabase gratuit actif) ----------
+  function getClientId(){
+    let id = localStorage.getItem('client_id');
+    if(!id){
+      id = (crypto.randomUUID) ? crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
+            const r = Math.random()*16|0;
+            return (c==='x' ? r : (r&0x3|0x8)).toString(16);
+          });
+      localStorage.setItem('client_id', id);
+    }
+    return id;
+  }
+
+  async function logTraffic(){
+    if(!dbClient) return;
+    try{
+      const clientId = getClientId();
+      const rows = Array.from({length: trafficPingCount}, ()=>({ client_id: clientId }));
+      const { error } = await dbClient.from('traffic_logging').insert(rows);
+      if(error) console.error('Traffic logging error:', error);
+    }catch(e){
+      console.error('Traffic logging error:', e);
+    }
+  }
+
 
   // ---------- Admin : connexion / déconnexion ----------
   const adminBtn = document.getElementById('admin-btn');
@@ -640,6 +674,7 @@
       statusMsg.textContent = 'Base de données non configurée : vérifie le fichier config.json.';
       statusMsg.className = 'status-msg err';
     }
+    logTraffic();
     refreshGuestList();
     refreshLodgings();
     refreshArticles();

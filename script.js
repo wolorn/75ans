@@ -56,45 +56,7 @@
     datebar.appendChild(chip);
   });
 
-  // garland flags — pastel palette
-  const flagColors = ['#F3B9C4','#A7DCC5','#C9B7E8','#F6D67E','#EE8266'];
-  const flagsG = document.getElementById('flags');
-  const flagCount = 16;
-  for(let i=0;i<flagCount;i++){
-    const x = (1200/(flagCount-1))*i;
-    const t = i/(flagCount-1);
-    const y = 4 + Math.sin(Math.PI*t)*46;
-    const tri = document.createElementNS('http://www.w3.org/2000/svg','polygon');
-    const w=14,h=20;
-    tri.setAttribute('points', `${x-w/2},${y} ${x+w/2},${y} ${x},${y+h}`);
-    tri.setAttribute('fill', flagColors[i%flagColors.length]);
-    tri.setAttribute('opacity','0.9');
-    flagsG.appendChild(tri);
-  }
-
-  // balloons
-  const balloonColors = ['#F3B9C4','#A7DCC5','#C9B7E8','#F6D67E','#EE8266'];
-  const balloonField = document.getElementById('balloon-field');
-  const balloonSpots = [
-    {left:'4%', top:'8%', size:1},
-    {left:'12%', top:'46%', size:0.75},
-    {left:'90%', top:'6%', size:0.85},
-    {left:'84%', top:'44%', size:1.1},
-    {left:'50%', top:'2%', size:0.7},
-  ];
-  balloonSpots.forEach((spot,i)=>{
-    const b = document.createElement('div');
-    const color = balloonColors[i%balloonColors.length];
-    b.className = 'balloon';
-    b.style.left = spot.left;
-    b.style.top = spot.top;
-    b.style.background = `radial-gradient(circle at 35% 30%, #fff8, ${color})`;
-    b.style.borderColor = color;
-    b.style.transform = `scale(${spot.size})`;
-    b.style.animationDelay = (i*0.6)+'s';
-    b.style.setProperty('border-top-color', color);
-    balloonField.appendChild(b);
-  });
+  // garland flags, beach balls: purement décoratif, voir decor.js
 
   // day toggles in form
   const daysGrid = document.getElementById('days-grid');

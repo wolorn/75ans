@@ -134,9 +134,10 @@
   // 3. Dans "Project Settings > API", copie l'URL du projet et la clé "anon public"
   //    dans le fichier "config.json" placé à côté de cette page HTML :
   //    { "supabase_url": "https://xxxx.supabase.co", "supabase_anon_key": "xxxx",
-  //      "invite_code": "xxxx", "traffic_ping_count": 1, "end_date_rsvp": "2027-05-10" }
-  //    Le champ "invite_code" est un simple mot de passe partagé en famille (pas une
-  //    vraie sécurité) pour décourager le spam sur le formulaire.
+  //      "traffic_ping_count": 1, "end_date_rsvp": "2027-05-10" }
+  //    Le code d'invitation n'est plus stocké ici (il l'était en clair, donc visible
+  //    publiquement sur GitHub) : il est désormais haché en base et vérifié via la
+  //    fonction "check_invite_code" (voir supabase_invite_code_security.sql).
   //    Le champ "traffic_ping_count" (optionnel, défaut 1) définit combien de lignes
   //    sont insérées dans "traffic_logging" à chaque chargement de la page, pour
   //    maintenir le projet Supabase gratuit actif.
@@ -152,7 +153,6 @@
   // du compte dans Authentication > Users, et désactivation des inscriptions
   // publiques).
   let dbClient = null;
-  let inviteCode = null;
   let isAdmin = false;
   let trafficPingCount = 1;
 
@@ -163,7 +163,6 @@
       const cfg = await res.json();
       if(!cfg.supabase_url || !cfg.supabase_anon_key) throw new Error('champs manquants');
       dbClient = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
-      inviteCode = cfg.invite_code || null;
       const parsedCount = parseInt(cfg.traffic_ping_count, 10);
       trafficPingCount = (Number.isFinite(parsedCount) && parsedCount > 0) ? parsedCount : 1;
 
@@ -520,13 +519,34 @@
       statusMsg.className = 'status-msg err';
       return;
     }
-    if(inviteCode && code.toLowerCase() !== inviteCode.toLowerCase()){
-      statusMsg.textContent = 'Code d\'invitation incorrect.';
+
+    submitBtn.disabled = true;
+    statusMsg.textContent = 'Vérification du code...';
+    statusMsg.className = 'status-msg';
+
+    try{
+      const { data: codeValid, error: codeError } = await dbClient.rpc('check_invite_code', { code });
+      if(codeError){
+        console.error(codeError);
+        statusMsg.textContent = 'Erreur lors de la vérification du code.';
+        statusMsg.className = 'status-msg err';
+        submitBtn.disabled = false;
+        return;
+      }
+      if(!codeValid){
+        statusMsg.textContent = 'Code d\'invitation incorrect.';
+        statusMsg.className = 'status-msg err';
+        submitBtn.disabled = false;
+        return;
+      }
+    }catch(err){
+      console.error(err);
+      statusMsg.textContent = 'Erreur lors de la vérification du code.';
       statusMsg.className = 'status-msg err';
+      submitBtn.disabled = false;
       return;
     }
 
-    submitBtn.disabled = true;
     statusMsg.textContent = 'Envoi en cours...';
     statusMsg.className = 'status-msg';
 

@@ -335,10 +335,25 @@
     </div>`;
   }
 
+  function numberToFrenchWord(n){
+    const words = ['zéro','une','deux','trois','quatre','cinq','six','sept','huit','neuf','dix',
+      'onze','douze','treize','quatorze','quinze','seize','dix-sept','dix-huit','dix-neuf','vingt'];
+    return words[n] !== undefined ? words[n] : String(n);
+  }
+
   function renderLodgings(lodgings){
     currentLodgings = lodgings;
     const onplace = lodgings.filter(l=>l.category === 'onplace');
     const nearby = lodgings.filter(l=>l.category === 'nearby');
+
+    const logementsLead = document.getElementById('logements-lead');
+    const n = onplace.length;
+    const onplacePhrase = n === 0
+      ? 'Aucune option pour dormir sur place pour l\'instant'
+      : n === 1
+        ? 'Une façon de dormir sur place'
+        : `${numberToFrenchWord(n).charAt(0).toUpperCase()}${numberToFrenchWord(n).slice(1)} façons de dormir sur place`;
+    logementsLead.textContent = `${onplacePhrase}, et quelques options à proximité si tu préfères être au calme.`;
 
     lodgingOnplaceEl.innerHTML = onplace.length
       ? onplace.map(lodgeCardHtml).join('')

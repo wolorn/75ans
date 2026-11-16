@@ -385,17 +385,18 @@
     sendOtpBtn.disabled = true;
     verifyOtpBtn.disabled = true;
     document.getElementById('f-otp-field').classList.add('disabled-field');
-    deleteGuestBtn.classList.remove('hidden');
+    deleteGuestBtn.textContent = 'Supprimer cette réponse';
     emailStatusMsg.textContent = `Réponse de ${g.name} chargée (mode admin) : modifie puis enregistre.`;
     emailStatusMsg.className = 'status-msg';
     document.getElementById('rsvp-form').scrollIntoView({ behavior:'smooth', block:'start' });
   }
 
-  // Suppression d'une réponse (admin uniquement : policy "admin delete
-  // guests" de la migration 0002). Ce bouton n'est visible qu'en édition
-  // admin, chargé via la liste des réponses.
+  // Annulation : un invité peut supprimer SA réponse (policy "owner delete
+  // guests" de la migration 0004 : email de la ligne = email de sa session
+  // vérifiée), et l'admin peut supprimer n'importe laquelle (migration 0002).
+  // Le bouton n'est visible qu'en mode modification, réponse chargée.
   deleteGuestBtn.addEventListener('click', async ()=>{
-    if(!isAdmin || !dbClient || !editingGuestId) return;
+    if(!dbClient || !editingGuestId) return;
     if(!confirm('Supprimer cette réponse de présence ?')) return;
     deleteGuestBtn.disabled = true;
     try{
@@ -681,7 +682,9 @@
     editingGuestId = null;
     updateEmailVerified = false;
     const isUpdate = mode === 'update';
-    deleteGuestBtn.classList.add('hidden');
+    deleteGuestBtn.classList.toggle('hidden', !isUpdate);
+    deleteGuestBtn.disabled = true;
+    deleteGuestBtn.textContent = 'Annuler ma réservation';
     modeNewBtn.classList.toggle('active', !isUpdate);
     modeUpdateBtn.classList.toggle('active', isUpdate);
     document.getElementById('f-code').disabled = isUpdate;
@@ -739,6 +742,7 @@
     fEmailInput.value = email;
     fEmailInput.disabled = true;
     submitBtn.disabled = false;
+    deleteGuestBtn.disabled = false;
   }
 
   async function loadAndPrefillForUpdate(email){

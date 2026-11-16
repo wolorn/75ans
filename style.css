@@ -423,7 +423,7 @@
     margin-bottom:8px;
     font-family:'IBM Plex Mono', monospace;
   }
-  input[type=text], input[type=number], input[type=password], input[type=date], textarea, select{
+  input[type=text], input[type=email], input[type=number], input[type=password], input[type=date], textarea, select{
     width:100%;
     background:var(--card-tint);
     border:1px solid var(--border);

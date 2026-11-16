@@ -513,7 +513,28 @@
     transition:transform .12s ease, background .12s ease;
   }
   button.submit:hover{background:var(--coral-dim); transform:translateY(-1px);}
-  button.submit:disabled{opacity:.5; cursor:default; transform:none;}
+  button.submit:disabled{opacity:.5; cursor:not-allowed; transform:none;}
+
+  /* ---------- Code de vérification email (OTP) ---------- */
+  .otp-row{display:flex; gap:10px;}
+  .otp-row input{flex:1; min-width:0;}
+  .otp-send-btn{
+    appearance:none;
+    border:1px solid var(--coral);
+    background:transparent;
+    color:var(--coral);
+    font-family:'Work Sans', sans-serif;
+    font-weight:600;
+    font-size:14px;
+    padding:11px 16px;
+    border-radius:999px;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:background .12s ease, color .12s ease;
+  }
+  .otp-send-btn:hover{background:var(--coral); color:#fff;}
+  .otp-send-btn:disabled{opacity:.5; cursor:not-allowed;}
+  .field-hint{margin:6px 0 0; font-size:12.5px; color:var(--ink-dim); line-height:1.5;}
   .status-msg{margin-top:14px; font-size:14px; color:#1E8F5F;}
   .status-msg.err{color:#D6432B;}
 

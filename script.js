@@ -181,9 +181,26 @@
   const adminLoginSubmit = document.getElementById('admin-login-submit');
 
   function applyAdminState(session){
-    isAdmin = !!session;
-    document.body.classList.toggle('is-admin', isAdmin);
-    adminBtn.textContent = isAdmin ? `🔓 ${session.user.email} · déconnexion` : '🔒 Admin';
+    // Une session ne veut plus dire "admin" : un invité peut être connecté
+    // via la vérification de son email (code à usage unique). La décision
+    // est déléguée à la fonction serveur is_admin(), qui compare l'email
+    // de l'utilisateur à la table "app_admins" (migration
+    // 0002_admin_rights_separation.sql). Si la fonction n'existe pas encore
+    // (migration pas encore exécutée), personne n'est admin.
+    isAdmin = false;
+    document.body.classList.toggle('is-admin', false);
+    adminBtn.textContent = '🔒 Admin';
+    if(!session) return;
+    dbClient.rpc('is_admin')
+      .then(({ data, error })=>{
+        if(error) throw error;
+        if(data === true){
+          isAdmin = true;
+          document.body.classList.toggle('is-admin', true);
+          adminBtn.textContent = `🔓 ${session.user.email} · déconnexion`;
+        }
+      })
+      .catch(err=>console.error('Vérification admin:', err));
   }
 
   function openAdminModal(){
@@ -239,7 +256,7 @@
     if(!dbClient) return [];
     const { data, error } = await dbClient
       .from('guests')
-      .select('*')
+      .select('id, name, count, msg, sleep, days, created_at')
       .order('created_at', { ascending: true });
     if(error){ console.error(error); return []; }
     return data;
@@ -470,6 +487,60 @@
     }
   });
 
+  // ---------- Code à usage unique : envoie du code de vérification email ----------
+  // Utilise Supabase Auth (signInWithOtp) : un email avec un code à 6 chiffres
+  // est envoyé par Supabase (template "Log In / Magic Link" contenant
+  // {{ .Token }}). Le code est consommé à la vérification (verifyOtp) :
+  // c'est un vrai code à usage unique.
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const sendOtpBtn = document.getElementById('send-otp-btn');
+  let otpCooldownTimer = null;
+
+  sendOtpBtn.addEventListener('click', async ()=>{
+    if(!dbClient){
+      statusMsg.textContent = 'Base de données non configurée : vérifie le fichier config.json.';
+      statusMsg.className = 'status-msg err';
+      return;
+    }
+    const email = document.getElementById('f-email').value.trim();
+    if(!EMAIL_RE.test(email)){
+      statusMsg.textContent = 'Merci de renseigner une adresse email valide avant de demander un code.';
+      statusMsg.className = 'status-msg err';
+      return;
+    }
+    sendOtpBtn.disabled = true;
+    statusMsg.textContent = 'Envoi du code...';
+    statusMsg.className = 'status-msg';
+    try{
+      const { error } = await dbClient.auth.signInWithOtp({ email });
+      if(error) throw error;
+      statusMsg.textContent = `Code envoyé à ${email} : saisis-le ci-dessous pour valider ta réservation.`;
+      statusMsg.className = 'status-msg';
+      document.getElementById('f-otp').focus();
+      // Petite pause anti-spam avant de pouvoir renvoyer un code.
+      let remaining = 30;
+      sendOtpBtn.textContent = `Renvoyer (${remaining}s)`;
+      clearInterval(otpCooldownTimer);
+      otpCooldownTimer = setInterval(()=>{
+        remaining--;
+        if(remaining <= 0){
+          clearInterval(otpCooldownTimer);
+          sendOtpBtn.textContent = 'Renvoyer le code';
+          sendOtpBtn.disabled = false;
+        }else{
+          sendOtpBtn.textContent = `Renvoyer (${remaining}s)`;
+        }
+      }, 1000);
+    }catch(err){
+      console.error(err);
+      statusMsg.textContent = err && err.message === 'Signups not allowed'
+        ? 'Envoi bloqué : réactive "Allow new users to sign up" dans Supabase (voir migration 0002).'
+        : 'Impossible d\'envoyer le code : réessaie dans un instant.';
+      statusMsg.className = 'status-msg err';
+      sendOtpBtn.disabled = false;
+    }
+  });
+
   form.addEventListener('submit', async (e)=>{
     e.preventDefault();
 
@@ -480,6 +551,8 @@
     }
 
     const name = document.getElementById('f-name').value.trim();
+    const email = document.getElementById('f-email').value.trim();
+    const otpCode = document.getElementById('f-otp').value.trim();
     const count = document.getElementById('f-count').value;
     const msg = document.getElementById('f-msg').value.trim();
     const sleep = document.getElementById('f-sleep').checked;
@@ -488,6 +561,16 @@
 
     if(!name){
       statusMsg.textContent = 'Merci d\'indiquer ton nom.';
+      statusMsg.className = 'status-msg err';
+      return;
+    }
+    if(!EMAIL_RE.test(email)){
+      statusMsg.textContent = 'Merci d\'indiquer une adresse email valide.';
+      statusMsg.className = 'status-msg err';
+      return;
+    }
+    if(!otpCode){
+      statusMsg.textContent = 'Clique d\'abord sur « Recevoir le code », puis saisis le code reçu par email.';
       statusMsg.className = 'status-msg err';
       return;
     }
@@ -524,12 +607,40 @@
       return;
     }
 
+    statusMsg.textContent = 'Vérification du code email...';
+    statusMsg.className = 'status-msg';
+
+    try{
+      // Consomme le code à usage unique envoyé par email. En cas de succès
+      // l'adresse est considérée comme validée (et l'utilisateur obtient une
+      // session "authenticated" sans aucun droit admin : voir is_admin()).
+      const { error: otpError } = await dbClient.auth.verifyOtp({
+        email,
+        token: otpCode,
+        type: 'email'
+      });
+      if(otpError){
+        console.error(otpError);
+        statusMsg.textContent = 'Code email incorrect, expiré ou déjà utilisé. Demande un nouveau code.';
+        statusMsg.className = 'status-msg err';
+        submitBtn.disabled = false;
+        return;
+      }
+    }catch(err){
+      console.error(err);
+      statusMsg.textContent = 'Erreur lors de la vérification du code email.';
+      statusMsg.className = 'status-msg err';
+      submitBtn.disabled = false;
+      return;
+    }
+
     statusMsg.textContent = 'Envoi en cours...';
     statusMsg.className = 'status-msg';
 
     try{
       await saveGuest({
         name, count: Number(count), msg, sleep,
+        email,
         days: checked.sort((a,b)=>a-b)
       });
       const guests = await loadGuests();

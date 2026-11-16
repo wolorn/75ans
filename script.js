@@ -248,6 +248,7 @@
   // ---------- RSVP storage ----------
   const form = document.getElementById('rsvp-form');
   const statusMsg = document.getElementById('status-msg');
+  const emailStatusMsg = document.getElementById('email-status-msg');
   const submitBtn = document.getElementById('submit-btn');
   const guestList = document.getElementById('guest-list');
   const totalCount = document.getElementById('total-count');
@@ -495,30 +496,34 @@
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const sendOtpBtn = document.getElementById('send-otp-btn');
   let otpCooldownTimer = null;
+  // Supabase refuse deux envois de code pour un même email à moins de 60 s
+  // d'intervalle (429 over_email_send_rate_limit) : on aligne le cooldown
+  // client dessus.
+  const OTP_RESEND_COOLDOWN_S = 60;
 
   sendOtpBtn.addEventListener('click', async ()=>{
     if(!dbClient){
-      statusMsg.textContent = 'Base de données non configurée : vérifie le fichier config.json.';
-      statusMsg.className = 'status-msg err';
+      emailStatusMsg.textContent = 'Base de données non configurée : vérifie le fichier config.json.';
+      emailStatusMsg.className = 'status-msg err';
       return;
     }
     const email = document.getElementById('f-email').value.trim();
     if(!EMAIL_RE.test(email)){
-      statusMsg.textContent = 'Merci de renseigner une adresse email valide avant de demander un code.';
-      statusMsg.className = 'status-msg err';
+      emailStatusMsg.textContent = 'Merci de renseigner une adresse email valide avant de demander un code.';
+      emailStatusMsg.className = 'status-msg err';
       return;
     }
     sendOtpBtn.disabled = true;
-    statusMsg.textContent = 'Envoi du code...';
-    statusMsg.className = 'status-msg';
+    emailStatusMsg.textContent = 'Envoi du code...';
+    emailStatusMsg.className = 'status-msg';
     try{
       const { error } = await dbClient.auth.signInWithOtp({ email });
       if(error) throw error;
-      statusMsg.textContent = `Code envoyé à ${email} : saisis-le ci-dessous pour valider ta réservation.`;
-      statusMsg.className = 'status-msg';
+      emailStatusMsg.textContent = `Code envoyé à ${email} : saisis-le ci-dessous.`;
+      emailStatusMsg.className = 'status-msg';
       document.getElementById('f-otp').focus();
-      // Petite pause anti-spam avant de pouvoir renvoyer un code.
-      let remaining = 30;
+      // Pause anti-spam avant de pouvoir renvoyer un code.
+      let remaining = OTP_RESEND_COOLDOWN_S;
       sendOtpBtn.textContent = `Renvoyer (${remaining}s)`;
       clearInterval(otpCooldownTimer);
       otpCooldownTimer = setInterval(()=>{
@@ -533,10 +538,14 @@
       }, 1000);
     }catch(err){
       console.error(err);
-      statusMsg.textContent = err && err.message === 'Signups not allowed'
-        ? 'Envoi bloqué : réactive "Allow new users to sign up" dans Supabase (voir migration 0002).'
-        : 'Impossible d\'envoyer le code : réessaie dans un instant.';
-      statusMsg.className = 'status-msg err';
+      if(err && (err.code === 'over_email_send_rate_limit' || err.status === 429)){
+        emailStatusMsg.textContent = 'Trop de codes demandés : attends une minute avant de redemander un code.';
+      }else if(err && err.message === 'Signups not allowed'){
+        emailStatusMsg.textContent = 'Envoi bloqué : réactive "Allow new users to sign up" dans Supabase (voir migration 0002).';
+      }else{
+        emailStatusMsg.textContent = 'Impossible d\'envoyer le code : réessaie dans un instant.';
+      }
+      emailStatusMsg.className = 'status-msg err';
       sendOtpBtn.disabled = false;
     }
   });
@@ -575,13 +584,17 @@
     fEmailInput.disabled = false;
     if(isUpdate){
       submitBtn.disabled = true;
-      statusMsg.textContent = 'Indique l\'adresse email utilisée pour ta réponse et valide-la par code.';
+      emailStatusMsg.textContent = 'Indique l\'adresse email utilisée pour ta réponse et valide-la par code.';
+      emailStatusMsg.className = 'status-msg';
+      statusMsg.textContent = '';
       statusMsg.className = 'status-msg';
       resumeUpdateWithSession();
     }else{
       submitBtn.disabled = false;
       statusMsg.textContent = '';
       statusMsg.className = 'status-msg';
+      emailStatusMsg.textContent = '';
+      emailStatusMsg.className = 'status-msg';
     }
   }
 
@@ -610,13 +623,13 @@
       .order('created_at', { ascending: false });
     if(error){
       console.error(error);
-      statusMsg.textContent = 'Erreur lors du chargement de ta réponse.';
-      statusMsg.className = 'status-msg err';
+      emailStatusMsg.textContent = 'Erreur lors du chargement de ta réponse.';
+      emailStatusMsg.className = 'status-msg err';
       return;
     }
     if(!data || data.length === 0){
-      statusMsg.textContent = 'Aucune réponse trouvée pour cette adresse — utilise « Première réponse ».';
-      statusMsg.className = 'status-msg err';
+      emailStatusMsg.textContent = 'Aucune réponse trouvée pour cette adresse — utilise « Première réponse ».';
+      emailStatusMsg.className = 'status-msg err';
       return;
     }
     const g = data[0];
@@ -630,39 +643,39 @@
     fEmailInput.value = email;
     fEmailInput.disabled = true;
     submitBtn.disabled = false;
-    statusMsg.textContent = `Réponse chargée (envoyée le ${new Date(g.created_at).toLocaleDateString('fr-FR')}) : modifie tes choix puis enregistre.`;
-    statusMsg.className = 'status-msg';
+    emailStatusMsg.textContent = `Réponse chargée (envoyée le ${new Date(g.created_at).toLocaleDateString('fr-FR')}) : modifie tes choix puis enregistre.`;
+    emailStatusMsg.className = 'status-msg';
   }
 
   verifyOtpBtn.addEventListener('click', async ()=>{
     if(!dbClient){
-      statusMsg.textContent = 'Base de données non configurée : vérifie le fichier config.json.';
-      statusMsg.className = 'status-msg err';
+      emailStatusMsg.textContent = 'Base de données non configurée : vérifie le fichier config.json.';
+      emailStatusMsg.className = 'status-msg err';
       return;
     }
     const email = fEmailInput.value.trim();
     const otp = document.getElementById('f-otp').value.trim();
     if(!EMAIL_RE.test(email)){
-      statusMsg.textContent = 'Merci de renseigner ton adresse email.';
-      statusMsg.className = 'status-msg err';
+      emailStatusMsg.textContent = 'Merci de renseigner ton adresse email.';
+      emailStatusMsg.className = 'status-msg err';
       return;
     }
     if(!otp){
-      statusMsg.textContent = 'Saisis d\'abord le code reçu par email.';
-      statusMsg.className = 'status-msg err';
+      emailStatusMsg.textContent = 'Saisis d\'abord le code reçu par email.';
+      emailStatusMsg.className = 'status-msg err';
       return;
     }
     verifyOtpBtn.disabled = true;
-    statusMsg.textContent = 'Vérification du code...';
-    statusMsg.className = 'status-msg';
+    emailStatusMsg.textContent = 'Vérification du code...';
+    emailStatusMsg.className = 'status-msg';
     try{
       const { error } = await dbClient.auth.verifyOtp({ email, token: otp, type: 'email' });
       if(error) throw error;
       await loadAndPrefillForUpdate(email);
     }catch(err){
       console.error(err);
-      statusMsg.textContent = 'Code incorrect, expiré ou déjà utilisé. Demande un nouveau code.';
-      statusMsg.className = 'status-msg err';
+      emailStatusMsg.textContent = 'Code incorrect, expiré ou déjà utilisé. Demande un nouveau code.';
+      emailStatusMsg.className = 'status-msg err';
     }finally{
       verifyOtpBtn.disabled = false;
     }
@@ -670,6 +683,8 @@
 
   async function updateExistingGuest(fields){
     submitBtn.disabled = true;
+    emailStatusMsg.textContent = '';
+    emailStatusMsg.className = 'status-msg';
     statusMsg.textContent = 'Enregistrement...';
     statusMsg.className = 'status-msg';
     try{
@@ -706,6 +721,7 @@
       statusMsg.className = 'status-msg err';
       return;
     }
+    emailStatusMsg.textContent = '';
 
     const name = document.getElementById('f-name').value.trim();
     const email = document.getElementById('f-email').value.trim();

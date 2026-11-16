@@ -90,6 +90,23 @@
         </div>
 
         <div class="field">
+          <label for="f-email">Ton adresse email</label>
+          <input type="email" id="f-email" required placeholder="prenom@exemple.com" autocomplete="email">
+        </div>
+
+        <div class="field">
+          <label for="f-otp">Code de vérification de ton email</label>
+          <div class="otp-row">
+            <input type="text" id="f-otp" required inputmode="numeric" autocomplete="one-time-code" placeholder="Code reçu par email">
+            <button type="button" class="otp-send-btn" id="send-otp-btn">Recevoir le code</button>
+            <button type="button" class="otp-send-btn hidden" id="verify-otp-btn">Vérifier</button>
+          </div>
+          <p class="field-hint">Clique sur « Recevoir le code » : un code à usage unique est envoyé à ton adresse, à saisir ici pour valider ta réservation.</p>
+        </div>
+
+        <p class="status-msg" id="email-status-msg" role="status"></p>
+
+        <div class="field">
           <label for="f-name">Ton nom</label>
           <input type="text" id="f-name" required placeholder="Prénom Nom">
         </div>
@@ -119,21 +136,6 @@
           <label for="f-code">Code d'invitation</label>
           <input type="text" id="f-code" required placeholder="Donné dans le faire-part">
           <p class="field-hint" id="f-code-hint" style="display:none;">Pas nécessaire pour modifier une réponse déjà envoyée.</p>
-        </div>
-
-        <div class="field">
-          <label for="f-email">Ton adresse email</label>
-          <input type="email" id="f-email" required placeholder="prenom@exemple.com" autocomplete="email">
-        </div>
-
-        <div class="field">
-          <label for="f-otp">Code de vérification de ton email</label>
-          <div class="otp-row">
-            <input type="text" id="f-otp" required inputmode="numeric" autocomplete="one-time-code" placeholder="Code reçu par email">
-            <button type="button" class="otp-send-btn" id="send-otp-btn">Recevoir le code</button>
-            <button type="button" class="otp-send-btn hidden" id="verify-otp-btn">Vérifier</button>
-          </div>
-          <p class="field-hint">Clique sur « Recevoir le code » : un code à usage unique est envoyé à ton adresse, à saisir ici pour valider ta réservation.</p>
         </div>
 
         <button type="submit" class="submit" id="submit-btn">Envoyer ma réponse</button>

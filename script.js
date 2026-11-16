@@ -133,8 +133,20 @@
 
       const { data: { session } } = await dbClient.auth.getSession();
       applyAdminState(session);
-      dbClient.auth.onAuthStateChange((_event, session)=>{
-        applyAdminState(session);
+      dbClient.auth.onAuthStateChange(async (_event, session)=>{
+        const wasAdmin = isAdmin;
+        // Attendre la fin de la vérification is_admin() avant de rafraîchir :
+        // sinon les listes sont rendues avec l'ancien état (liste admin vide
+        // à la connexion, etc.).
+        await applyAdminState(session);
+        if(wasAdmin && !isAdmin){
+          // Déconnexion admin : repartir d'un formulaire vierge.
+          form.reset();
+          resetOtpSendButton();
+          setRsvpMode('new');
+          statusMsg.textContent = '';
+          statusMsg.className = 'status-msg';
+        }
         refreshGuestList();
         refreshLodgings();
         refreshArticles();
@@ -180,7 +192,7 @@
   const adminLoginStatus = document.getElementById('admin-login-status');
   const adminLoginSubmit = document.getElementById('admin-login-submit');
 
-  function applyAdminState(session){
+  async function applyAdminState(session){
     // Une session ne veut plus dire "admin" : un invité peut être connecté
     // via la vérification de son email (code à usage unique). La décision
     // est déléguée à la fonction serveur is_admin(), qui compare l'email
@@ -191,16 +203,17 @@
     document.body.classList.toggle('is-admin', false);
     adminBtn.textContent = '🔒 Admin';
     if(!session) return;
-    dbClient.rpc('is_admin')
-      .then(({ data, error })=>{
-        if(error) throw error;
-        if(data === true){
-          isAdmin = true;
-          document.body.classList.toggle('is-admin', true);
-          adminBtn.textContent = `🔓 ${session.user.email} · déconnexion`;
-        }
-      })
-      .catch(err=>console.error('Vérification admin:', err));
+    try{
+      const { data, error } = await dbClient.rpc('is_admin');
+      if(error) throw error;
+      if(data === true){
+        isAdmin = true;
+        document.body.classList.toggle('is-admin', true);
+        adminBtn.textContent = `🔓 ${session.user.email} · déconnexion`;
+      }
+    }catch(err){
+      console.error('Vérification admin:', err);
+    }
   }
 
   function openAdminModal(){
@@ -365,6 +378,11 @@
     setRsvpMode('update', { skipSession: true });
     prefillGuestForUpdate(g, g.email || '');
     resetOtpSendButton();
+    // Mode admin : l'OTP est inutile, tout le bloc est désactivé et grisé.
+    document.getElementById('f-otp').disabled = true;
+    sendOtpBtn.disabled = true;
+    verifyOtpBtn.disabled = true;
+    document.getElementById('f-otp-field').classList.add('disabled-field');
     emailStatusMsg.textContent = `Réponse de ${g.name} chargée (mode admin) : modifie puis enregistre.`;
     emailStatusMsg.className = 'status-msg';
     document.getElementById('rsvp-form').scrollIntoView({ behavior:'smooth', block:'start' });
@@ -642,6 +660,9 @@
     verifyOtpBtn.classList.toggle('hidden', !isUpdate);
     submitBtn.textContent = isUpdate ? 'Enregistrer mes modifications' : 'Envoyer ma réponse';
     fEmailInput.disabled = false;
+    document.getElementById('f-otp').disabled = false;
+    verifyOtpBtn.disabled = false;
+    document.getElementById('f-otp-field').classList.remove('disabled-field');
     resetOtpSendButton();
     if(isUpdate){
       submitBtn.disabled = true;

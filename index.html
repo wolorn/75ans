@@ -104,7 +104,7 @@
           <p class="field-hint">Clique sur « Recevoir le code » : un code à usage unique est envoyé à ton adresse, à saisir ici pour valider ta réservation.</p>
         </div>
 
-        <p class="status-msg" id="email-status-msg" role="status"></p>
+        <p class="status-msg" id="email-status-msg" role="status">Un code de vérification te sera envoyé par email pour valider ta réservation.</p>
 
         <div class="field">
           <label for="f-name">Ton nom</label>
@@ -145,12 +145,10 @@
     </div>
 
     <div class="guest-summary">
-      <h3>Qui a répondu</h3>
+      <h3>Qui vient, et quand</h3>
       <span class="guest-count" id="total-count">0 personne</span>
     </div>
-    <div class="guest-list" id="guest-list">
-      <p class="empty-note">Personne n'a encore répondu — sois le premier·ère !</p>
-    </div>
+    <div class="days-chart" id="day-chart"></div>
   </section>
 
   <!-- LOGEMENTS -->

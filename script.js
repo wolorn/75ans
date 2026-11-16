@@ -250,8 +250,11 @@
   const statusMsg = document.getElementById('status-msg');
   const emailStatusMsg = document.getElementById('email-status-msg');
   const submitBtn = document.getElementById('submit-btn');
-  const guestList = document.getElementById('guest-list');
+  const dayChartEl = document.getElementById('day-chart');
   const totalCount = document.getElementById('total-count');
+  // Message par défaut du statut email (visible dès l'affichage, pour
+  // éviter que la page ne saute quand le statut apparaît).
+  const DEFAULT_EMAIL_MSG = 'Un code de vérification te sera envoyé par email pour valider ta réservation.';
 
   async function loadGuests(){
     if(!dbClient) return [];
@@ -269,45 +272,24 @@
   }
 
   function renderGuests(guests){
-    if(!guests.length){
-      guestList.innerHTML = '<p class="empty-note">Personne n\'a encore répondu — sois le premier·ère !</p>';
-      totalCount.textContent = '0 personne';
-      return;
-    }
-    let total = 0;
-    guestList.innerHTML = guests.slice().reverse().map(g=>{
-      total += Number(g.count)||0;
-      const daysLabel = g.days.length === 8
-        ? 'Toute la semaine'
-        : g.days.map(d=>d+' juil.').join(', ');
-      return `<div class="guest-row" data-id="${g.id}">
-        <div>
-          <div class="who">${escapeHtml(g.name)}</div>
-          <div class="days">${daysLabel}</div>
-        </div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          ${g.sleep ? '<span class="sleep-tag">⛺ dort en tente</span>' : ''}
-          <span class="cnt">${g.count} pers.</span>
-          <button type="button" class="guest-delete-btn" data-id="${g.id}" title="Supprimer cette réponse">🗑</button>
-        </div>
+    const total = guests.reduce((s,g)=>s+(Number(g.count)||0),0);
+    totalCount.textContent = total + (total>1 ? ' personnes' : ' personne');
+
+    // Nombre de personnes présentes pour chaque jour possible, à partir des
+    // réponses enregistrées. Une réponse couvre tout le groupe (count).
+    const perDay = dayNumbers.map(d=>guests.reduce(
+      (s,g)=>s+((g.days||[]).includes(d) ? (Number(g.count)||0) : 0), 0));
+    const max = Math.max(1, ...perDay);
+    dayChartEl.innerHTML = dayNumbers.map((d,i)=>{
+      const v = perDay[i];
+      const h = Math.max(3, Math.round(v/max*100));
+      return `<div class="day-bar-col${v===0? ' empty':''}" title="${v} personne${v>1?'s':''} le ${d} juillet">
+        <span class="day-bar-val">${v>0 ? v : ''}</span>
+        <div class="day-bar-track"><div class="day-bar" style="height:${h}%"></div></div>
+        <div class="day-bar-label">${fmtWeekday(d)}<br>${d}</div>
       </div>`;
     }).join('');
-    totalCount.textContent = total + (total>1 ? ' personnes' : ' personne');
   }
-
-  guestList.addEventListener('click', async (e)=>{
-    const btn = e.target.closest('.guest-delete-btn');
-    if(!btn || !isAdmin) return;
-    if(!confirm('Supprimer cette réponse de présence ?')) return;
-    try{
-      const { error } = await dbClient.from('guests').delete().eq('id', btn.dataset.id);
-      if(error) throw error;
-      await refreshGuestList();
-    }catch(err){
-      console.error(err);
-      alert('Erreur lors de la suppression.');
-    }
-  });
 
   function escapeHtml(str){
     const d = document.createElement('div');
@@ -550,6 +532,15 @@
     }
   });
 
+  // Remet le bouton d'envoi du code et son statut à l'état initial
+  // (fin d'un cooldown, changement de mode, envoi terminé).
+  function resetOtpSendButton(){
+    clearInterval(otpCooldownTimer);
+    otpCooldownTimer = null;
+    sendOtpBtn.disabled = false;
+    sendOtpBtn.textContent = 'Recevoir le code';
+  }
+
   // ---------- Modification d'une réponse existante ----------
   // Même mécanique d'OTP : l'invité valide son adresse, sa réponse la plus
   // récente est rechargée dans le formulaire, et il peut l'enregistrer.
@@ -582,6 +573,7 @@
     verifyOtpBtn.classList.toggle('hidden', !isUpdate);
     submitBtn.textContent = isUpdate ? 'Enregistrer mes modifications' : 'Envoyer ma réponse';
     fEmailInput.disabled = false;
+    resetOtpSendButton();
     if(isUpdate){
       submitBtn.disabled = true;
       emailStatusMsg.textContent = 'Indique l\'adresse email utilisée pour ta réponse et valide-la par code.';
@@ -593,7 +585,7 @@
       submitBtn.disabled = false;
       statusMsg.textContent = '';
       statusMsg.className = 'status-msg';
-      emailStatusMsg.textContent = '';
+      emailStatusMsg.textContent = DEFAULT_EMAIL_MSG;
       emailStatusMsg.className = 'status-msg';
     }
   }
@@ -833,6 +825,9 @@
       statusMsg.textContent = 'Réponse enregistrée, merci !';
       statusMsg.className = 'status-msg';
       form.reset();
+      resetOtpSendButton();
+      emailStatusMsg.textContent = DEFAULT_EMAIL_MSG;
+      emailStatusMsg.className = 'status-msg';
     }catch(err){
       console.error(err);
       statusMsg.textContent = 'Une erreur est survenue, réessaie.';

@@ -648,6 +648,24 @@
   }
   .admin-load-btn:hover{background:var(--coral); color:#fff;}
 
+  /* ---------- Actions du formulaire RSVP ---------- */
+  .rsvp-actions{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .delete-guest-btn{
+    appearance:none;
+    border:1px solid var(--border);
+    background:transparent;
+    color:#D6432B;
+    font-family:'Work Sans', sans-serif;
+    font-weight:600;
+    font-size:14px;
+    padding:12px 20px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:background .12s ease, border-color .12s ease;
+  }
+  .delete-guest-btn:hover{border-color:#D6432B; background:rgba(214,67,43,0.08);}
+  .delete-guest-btn:disabled{opacity:.5; cursor:not-allowed;}
+
   /* ---------- Lodging ---------- */
   .lodging-note{
     background:rgba(255,107,74,0.08);

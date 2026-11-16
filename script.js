@@ -374,6 +374,8 @@
 
   // Bascule le formulaire en mode modification, prérempli avec la réponse
   // choisie, sans OTP (l'admin modifiera via ses droits is_admin()).
+  const deleteGuestBtn = document.getElementById('delete-guest-btn');
+
   function enterAdminEdit(g){
     setRsvpMode('update', { skipSession: true });
     prefillGuestForUpdate(g, g.email || '');
@@ -383,10 +385,37 @@
     sendOtpBtn.disabled = true;
     verifyOtpBtn.disabled = true;
     document.getElementById('f-otp-field').classList.add('disabled-field');
+    deleteGuestBtn.classList.remove('hidden');
     emailStatusMsg.textContent = `Réponse de ${g.name} chargée (mode admin) : modifie puis enregistre.`;
     emailStatusMsg.className = 'status-msg';
     document.getElementById('rsvp-form').scrollIntoView({ behavior:'smooth', block:'start' });
   }
+
+  // Suppression d'une réponse (admin uniquement : policy "admin delete
+  // guests" de la migration 0002). Ce bouton n'est visible qu'en édition
+  // admin, chargé via la liste des réponses.
+  deleteGuestBtn.addEventListener('click', async ()=>{
+    if(!isAdmin || !dbClient || !editingGuestId) return;
+    if(!confirm('Supprimer cette réponse de présence ?')) return;
+    deleteGuestBtn.disabled = true;
+    try{
+      const { error } = await dbClient.from('guests').delete().eq('id', editingGuestId);
+      if(error) throw error;
+      form.reset();
+      resetOtpSendButton();
+      setRsvpMode('new');
+      deleteGuestBtn.classList.add('hidden');
+      await refreshGuestList();
+      statusMsg.textContent = 'Réponse supprimée.';
+      statusMsg.className = 'status-msg';
+    }catch(err){
+      console.error(err);
+      statusMsg.textContent = 'Suppression impossible.';
+      statusMsg.className = 'status-msg err';
+    }finally{
+      deleteGuestBtn.disabled = false;
+    }
+  });
 
   // ---------- Lodgings (logements) ----------
   const lodgingOnplaceEl = document.getElementById('lodging-onplace');
@@ -652,6 +681,7 @@
     editingGuestId = null;
     updateEmailVerified = false;
     const isUpdate = mode === 'update';
+    deleteGuestBtn.classList.add('hidden');
     modeNewBtn.classList.toggle('active', !isUpdate);
     modeUpdateBtn.classList.toggle('active', isUpdate);
     document.getElementById('f-code').disabled = isUpdate;

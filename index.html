@@ -78,12 +78,17 @@
   <!-- PRESENCE -->
   <section class="panel" id="panel-presence">
     <h2 class="section-title">Tu viens ?</h2>
-    <p class="section-lead">Coche les jours où tu seras là et indique combien vous serez. Tu peux répondre plusieurs fois si ta réponse change.</p>
+    <p class="section-lead">Coche les jours où tu seras là et indique combien vous serez. Si tu as déjà répondu, « Modifier ma réponse » te permet de recharger et d'ajuster tes choix.</p>
     <p class="status-msg" id="deadline-msg"></p>
 
     <div class="card">
       <form id="rsvp-form">
         <fieldset id="rsvp-fieldset" style="border:none; margin:0; padding:0;">
+        <div class="rsvp-mode-switch">
+          <button type="button" class="mode-btn active" id="mode-new-btn">Première réponse</button>
+          <button type="button" class="mode-btn" id="mode-update-btn">Modifier ma réponse</button>
+        </div>
+
         <div class="field">
           <label for="f-name">Ton nom</label>
           <input type="text" id="f-name" required placeholder="Prénom Nom">
@@ -110,9 +115,10 @@
           <label for="f-sleep" style="margin:0;">Je dors en tente</label>
         </div>
 
-        <div class="field">
+        <div class="field" id="f-code-field">
           <label for="f-code">Code d'invitation</label>
           <input type="text" id="f-code" required placeholder="Donné dans le faire-part">
+          <p class="field-hint" id="f-code-hint" style="display:none;">Pas nécessaire pour modifier une réponse déjà envoyée.</p>
         </div>
 
         <div class="field">
@@ -125,6 +131,7 @@
           <div class="otp-row">
             <input type="text" id="f-otp" required inputmode="numeric" autocomplete="one-time-code" placeholder="Code reçu par email">
             <button type="button" class="otp-send-btn" id="send-otp-btn">Recevoir le code</button>
+            <button type="button" class="otp-send-btn hidden" id="verify-otp-btn">Vérifier</button>
           </div>
           <p class="field-hint">Clique sur « Recevoir le code » : un code à usage unique est envoyé à ton adresse, à saisir ici pour valider ta réservation.</p>
         </div>

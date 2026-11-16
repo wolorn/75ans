@@ -541,6 +541,163 @@
     }
   });
 
+  // ---------- Modification d'une réponse existante ----------
+  // Même mécanique d'OTP : l'invité valide son adresse, sa réponse la plus
+  // récente est rechargée dans le formulaire, et il peut l'enregistrer.
+  // L'email n'est pas modifiable dans ce mode (c'est lui qui identifie la
+  // réponse) et le code d'invitation est inutile (grisé).
+  const modeNewBtn = document.getElementById('mode-new-btn');
+  const modeUpdateBtn = document.getElementById('mode-update-btn');
+  const verifyOtpBtn = document.getElementById('verify-otp-btn');
+  const fCodeField = document.getElementById('f-code-field');
+  const fCodeHint = document.getElementById('f-code-hint');
+  const fEmailInput = document.getElementById('f-email');
+  let rsvpMode = 'new';
+  let editingGuestId = null;
+  let updateEmailVerified = false;
+
+  modeNewBtn.addEventListener('click', ()=>setRsvpMode('new'));
+  modeUpdateBtn.addEventListener('click', ()=>setRsvpMode('update'));
+
+  function setRsvpMode(mode){
+    if(rsvpMode === mode) return;
+    rsvpMode = mode;
+    editingGuestId = null;
+    updateEmailVerified = false;
+    const isUpdate = mode === 'update';
+    modeNewBtn.classList.toggle('active', !isUpdate);
+    modeUpdateBtn.classList.toggle('active', isUpdate);
+    document.getElementById('f-code').disabled = isUpdate;
+    fCodeField.classList.toggle('disabled-field', isUpdate);
+    fCodeHint.style.display = isUpdate ? '' : 'none';
+    verifyOtpBtn.classList.toggle('hidden', !isUpdate);
+    submitBtn.textContent = isUpdate ? 'Enregistrer mes modifications' : 'Envoyer ma réponse';
+    fEmailInput.disabled = false;
+    if(isUpdate){
+      submitBtn.disabled = true;
+      statusMsg.textContent = 'Indique l\'adresse email utilisée pour ta réponse et valide-la par code.';
+      statusMsg.className = 'status-msg';
+      resumeUpdateWithSession();
+    }else{
+      submitBtn.disabled = false;
+      statusMsg.textContent = '';
+      statusMsg.className = 'status-msg';
+    }
+  }
+
+  // Si l'utilisateur a déjà une session (ex. vient de valider son email pour
+  // une première réponse), et que l'email saisi est le même : pas besoin de
+  // nouveau code, on recharge directement sa réponse.
+  async function resumeUpdateWithSession(){
+    if(!dbClient || rsvpMode !== 'update') return;
+    const email = fEmailInput.value.trim().toLowerCase();
+    if(!email || !EMAIL_RE.test(email)) return;
+    try{
+      const { data: { session } } = await dbClient.auth.getSession();
+      if(!session || !session.user || (session.user.email || '').toLowerCase() !== email) return;
+      await loadAndPrefillForUpdate(email);
+    }catch(err){
+      console.error(err);
+    }
+  }
+  fEmailInput.addEventListener('change', resumeUpdateWithSession);
+
+  async function loadAndPrefillForUpdate(email){
+    const { data, error } = await dbClient
+      .from('guests')
+      .select('id, name, count, msg, sleep, days, created_at')
+      .eq('email', email)
+      .order('created_at', { ascending: false });
+    if(error){
+      console.error(error);
+      statusMsg.textContent = 'Erreur lors du chargement de ta réponse.';
+      statusMsg.className = 'status-msg err';
+      return;
+    }
+    if(!data || data.length === 0){
+      statusMsg.textContent = 'Aucune réponse trouvée pour cette adresse — utilise « Première réponse ».';
+      statusMsg.className = 'status-msg err';
+      return;
+    }
+    const g = data[0];
+    editingGuestId = g.id;
+    updateEmailVerified = true;
+    document.getElementById('f-name').value = g.name;
+    document.getElementById('f-count').value = g.count;
+    document.getElementById('f-msg').value = g.msg || '';
+    document.getElementById('f-sleep').checked = !!g.sleep;
+    daysGrid.querySelectorAll('input').forEach(i=>{ i.checked = g.days.includes(Number(i.value)); });
+    fEmailInput.value = email;
+    fEmailInput.disabled = true;
+    submitBtn.disabled = false;
+    statusMsg.textContent = `Réponse chargée (envoyée le ${new Date(g.created_at).toLocaleDateString('fr-FR')}) : modifie tes choix puis enregistre.`;
+    statusMsg.className = 'status-msg';
+  }
+
+  verifyOtpBtn.addEventListener('click', async ()=>{
+    if(!dbClient){
+      statusMsg.textContent = 'Base de données non configurée : vérifie le fichier config.json.';
+      statusMsg.className = 'status-msg err';
+      return;
+    }
+    const email = fEmailInput.value.trim();
+    const otp = document.getElementById('f-otp').value.trim();
+    if(!EMAIL_RE.test(email)){
+      statusMsg.textContent = 'Merci de renseigner ton adresse email.';
+      statusMsg.className = 'status-msg err';
+      return;
+    }
+    if(!otp){
+      statusMsg.textContent = 'Saisis d\'abord le code reçu par email.';
+      statusMsg.className = 'status-msg err';
+      return;
+    }
+    verifyOtpBtn.disabled = true;
+    statusMsg.textContent = 'Vérification du code...';
+    statusMsg.className = 'status-msg';
+    try{
+      const { error } = await dbClient.auth.verifyOtp({ email, token: otp, type: 'email' });
+      if(error) throw error;
+      await loadAndPrefillForUpdate(email);
+    }catch(err){
+      console.error(err);
+      statusMsg.textContent = 'Code incorrect, expiré ou déjà utilisé. Demande un nouveau code.';
+      statusMsg.className = 'status-msg err';
+    }finally{
+      verifyOtpBtn.disabled = false;
+    }
+  });
+
+  async function updateExistingGuest(fields){
+    submitBtn.disabled = true;
+    statusMsg.textContent = 'Enregistrement...';
+    statusMsg.className = 'status-msg';
+    try{
+      const { error } = await dbClient.from('guests').update({
+        name: fields.name,
+        count: fields.count,
+        msg: fields.msg,
+        sleep: fields.sleep,
+        days: fields.checked.slice().sort((a,b)=>a-b)
+      }).eq('id', editingGuestId);
+      if(error) throw error;
+      const guests = await loadGuests();
+      renderGuests(guests);
+      form.reset();
+      setRsvpMode('new');
+      statusMsg.textContent = 'Réponse mise à jour, merci !';
+      statusMsg.className = 'status-msg';
+    }catch(err){
+      console.error(err);
+      statusMsg.textContent = err && err.code === '42501'
+        ? 'Tu ne peux modifier que la réponse correspondant à ton adresse email vérifiée.'
+        : 'Une erreur est survenue, réessaie.';
+      statusMsg.className = 'status-msg err';
+    }finally{
+      submitBtn.disabled = false;
+    }
+  }
+
   form.addEventListener('submit', async (e)=>{
     e.preventDefault();
 
@@ -569,7 +726,7 @@
       statusMsg.className = 'status-msg err';
       return;
     }
-    if(!otpCode){
+    if(rsvpMode === 'new' && !otpCode){
       statusMsg.textContent = 'Clique d\'abord sur « Recevoir le code », puis saisis le code reçu par email.';
       statusMsg.className = 'status-msg err';
       return;
@@ -577,6 +734,18 @@
     if(checked.length === 0){
       statusMsg.textContent = 'Coche au moins un jour de présence.';
       statusMsg.className = 'status-msg err';
+      return;
+    }
+
+    // En mode modification : l'email est déjà vérifié (bouton « Vérifier »),
+    // le code d'invitation est inutile, et on met à jour la ligne existante.
+    if(rsvpMode === 'update'){
+      if(!editingGuestId || !updateEmailVerified){
+        statusMsg.textContent = 'Vérifie d\'abord ton adresse email (bouton « Vérifier ») pour charger ta réponse.';
+        statusMsg.className = 'status-msg err';
+        return;
+      }
+      await updateExistingGuest({ name, count: Number(count), msg, sleep, checked });
       return;
     }
 

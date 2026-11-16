@@ -610,6 +610,44 @@
   }
   .empty-note{color:var(--ink-dim); font-size:14px; font-style:italic;}
 
+  /* ---------- Liste admin des réponses ---------- */
+  .admin-rsvp-list.admin-only{display:none;}
+  body.is-admin .admin-rsvp-list.admin-only{display:block;}
+  .admin-rsvp-list{margin-top:34px;}
+  .admin-rsvp-list h3{font-family:'Fraunces', serif; font-size:20px; margin:0 0 12px; color:var(--pool-deep);}
+  .admin-rsvp-row{
+    display:flex; justify-content:space-between; align-items:center; gap:12px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:12px 16px;
+    margin-bottom:8px;
+  }
+  .admin-rsvp-row .who{font-weight:700; color:var(--ink);}
+  .admin-rsvp-meta{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--ink-dim);
+    margin-top:3px;
+    line-height:1.5;
+  }
+  .admin-load-btn{
+    appearance:none;
+    border:1px solid var(--coral);
+    background:transparent;
+    color:var(--coral);
+    font-family:'Work Sans', sans-serif;
+    font-weight:600;
+    font-size:13px;
+    padding:8px 14px;
+    border-radius:999px;
+    cursor:pointer;
+    white-space:nowrap;
+    flex-shrink:0;
+    transition:background .12s ease, color .12s ease;
+  }
+  .admin-load-btn:hover{background:var(--coral); color:#fff;}
+
   /* ---------- Lodging ---------- */
   .lodging-note{
     background:rgba(255,107,74,0.08);

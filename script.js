@@ -300,6 +300,74 @@
   async function refreshGuestList(){
     const guests = await loadGuests();
     renderGuests(guests);
+    await refreshAdminRsvpList();
+  }
+
+  // ---------- Admin : liste des réponses, réédition via le formulaire ----------
+  // L'admin charge n'importe quelle réponse dans le formulaire (le clique
+  // « Modifier »). L'update passe par la policy admin is_admin() de la
+  // migration 0002 ; l'email reste non modifiable, comme pour un invité.
+  const adminRsvpRowsEl = document.getElementById('admin-rsvp-rows');
+
+  async function refreshAdminRsvpList(){
+    if(!isAdmin || !dbClient){
+      adminRsvpRowsEl.innerHTML = '<p class="empty-note">Connecte-toi en admin pour voir les réponses.</p>';
+      return;
+    }
+    const { data, error } = await dbClient
+      .from('guests')
+      .select('id, name, count, msg, sleep, days, email, created_at')
+      .order('created_at', { ascending: false });
+    if(error){
+      console.error(error);
+      adminRsvpRowsEl.innerHTML = '<p class="empty-note">Erreur lors du chargement des réponses.</p>';
+      return;
+    }
+    if(!data.length){
+      adminRsvpRowsEl.innerHTML = '<p class="empty-note">Aucune réponse enregistrée.</p>';
+      return;
+    }
+    adminRsvpRowsEl.innerHTML = data.map(g=>{
+      const daysLabel = g.days.length === 8
+        ? 'toute la semaine'
+        : g.days.map(d=>d+' juil.').join(', ');
+      const when = new Date(g.created_at).toLocaleDateString('fr-FR');
+      return `<div class="admin-rsvp-row" data-id="${g.id}">
+        <div class="admin-rsvp-info">
+          <div class="who">${escapeHtml(g.name)}</div>
+          <div class="admin-rsvp-meta">${g.email ? escapeHtml(g.email) + ' · ' : ''}${when} · ${g.count} pers. · ${daysLabel}${g.sleep ? ' · ⛺ tentes' : ''}</div>
+        </div>
+        <button type="button" class="admin-load-btn" data-id="${g.id}">Modifier</button>
+      </div>`;
+    }).join('');
+  }
+
+  adminRsvpRowsEl.addEventListener('click', async (e)=>{
+    const btn = e.target.closest('.admin-load-btn');
+    if(!btn || !isAdmin || !dbClient) return;
+    try{
+      const { data, error } = await dbClient
+        .from('guests')
+        .select('id, name, count, msg, sleep, days, email, created_at')
+        .eq('id', btn.dataset.id);
+      if(error) throw error;
+      if(!data || data.length === 0) throw new Error('réponse introuvable');
+      enterAdminEdit(data[0]);
+    }catch(err){
+      console.error(err);
+      alert('Impossible de charger cette réponse.');
+    }
+  });
+
+  // Bascule le formulaire en mode modification, prérempli avec la réponse
+  // choisie, sans OTP (l'admin modifiera via ses droits is_admin()).
+  function enterAdminEdit(g){
+    setRsvpMode('update', { skipSession: true });
+    prefillGuestForUpdate(g, g.email || '');
+    resetOtpSendButton();
+    emailStatusMsg.textContent = `Réponse de ${g.name} chargée (mode admin) : modifie puis enregistre.`;
+    emailStatusMsg.className = 'status-msg';
+    document.getElementById('rsvp-form').scrollIntoView({ behavior:'smooth', block:'start' });
   }
 
   // ---------- Lodgings (logements) ----------
@@ -559,7 +627,8 @@
   modeNewBtn.addEventListener('click', ()=>setRsvpMode('new'));
   modeUpdateBtn.addEventListener('click', ()=>setRsvpMode('update'));
 
-  function setRsvpMode(mode){
+  function setRsvpMode(mode, opts){
+    opts = opts || {};
     if(rsvpMode === mode) return;
     rsvpMode = mode;
     editingGuestId = null;
@@ -580,7 +649,7 @@
       emailStatusMsg.className = 'status-msg';
       statusMsg.textContent = '';
       statusMsg.className = 'status-msg';
-      resumeUpdateWithSession();
+      if(!opts.skipSession) resumeUpdateWithSession();
     }else{
       submitBtn.disabled = false;
       statusMsg.textContent = '';
@@ -607,6 +676,20 @@
   }
   fEmailInput.addEventListener('change', resumeUpdateWithSession);
 
+  // Préremplit le formulaire avec une réponse complète (champ email verrouillé).
+  function prefillGuestForUpdate(g, email){
+    editingGuestId = g.id;
+    updateEmailVerified = true;
+    document.getElementById('f-name').value = g.name;
+    document.getElementById('f-count').value = g.count;
+    document.getElementById('f-msg').value = g.msg || '';
+    document.getElementById('f-sleep').checked = !!g.sleep;
+    daysGrid.querySelectorAll('input').forEach(i=>{ i.checked = g.days.includes(Number(i.value)); });
+    fEmailInput.value = email;
+    fEmailInput.disabled = true;
+    submitBtn.disabled = false;
+  }
+
   async function loadAndPrefillForUpdate(email){
     const { data, error } = await dbClient
       .from('guests')
@@ -625,16 +708,7 @@
       return;
     }
     const g = data[0];
-    editingGuestId = g.id;
-    updateEmailVerified = true;
-    document.getElementById('f-name').value = g.name;
-    document.getElementById('f-count').value = g.count;
-    document.getElementById('f-msg').value = g.msg || '';
-    document.getElementById('f-sleep').checked = !!g.sleep;
-    daysGrid.querySelectorAll('input').forEach(i=>{ i.checked = g.days.includes(Number(i.value)); });
-    fEmailInput.value = email;
-    fEmailInput.disabled = true;
-    submitBtn.disabled = false;
+    prefillGuestForUpdate(g, email);
     emailStatusMsg.textContent = `Réponse chargée (envoyée le ${new Date(g.created_at).toLocaleDateString('fr-FR')}) : modifie tes choix puis enregistre.`;
     emailStatusMsg.className = 'status-msg';
   }

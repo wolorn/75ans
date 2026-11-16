@@ -376,22 +376,6 @@
   }
   .lodge-admin-actions button:hover{border-color:var(--coral);}
 
-  .guest-delete-btn{
-    display:none;
-    appearance:none;
-    border:1px solid var(--border);
-    background:var(--card-tint);
-    border-radius:8px;
-    width:28px; height:28px;
-    cursor:pointer;
-    font-size:13px;
-    align-items:center; justify-content:center;
-    flex-shrink:0;
-    color:var(--ink);
-  }
-  body.is-admin .guest-delete-btn{display:inline-flex;}
-  .guest-delete-btn:hover{border-color:var(--coral);}
-
   main{max-width:760px; margin:0 auto; padding:40px 24px 100px; position:relative; z-index:1;}
   section.panel{display:none;}
   section.panel.active{display:block; animation:fade .35s ease;}
@@ -489,15 +473,6 @@
     color:var(--ink);
     cursor:pointer;
   }
-  .sleep-tag{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px;
-    background:var(--palm);
-    color:#fff;
-    padding:3px 9px;
-    border-radius:999px;
-    white-space:nowrap;
-  }
 
   button.submit{
     appearance:none;
@@ -585,25 +560,53 @@
   }
   .guest-summary h3{font-family:'Fraunces', serif; font-size:20px; margin:0; color:var(--pool-deep);}
   .guest-count{font-family:'IBM Plex Mono', monospace; color:var(--coral-dim); font-size:14px;}
-  .guest-list{display:flex; flex-direction:column; gap:10px;}
-  .guest-row{
-    display:flex; justify-content:space-between; align-items:center;
+
+  /* ---------- Graphique de présence par jour ---------- */
+  .days-chart{
+    display:flex; align-items:stretch; gap:6px;
     background:var(--card);
     border:1px solid var(--border);
-    border-radius:12px;
-    padding:12px 16px;
-    gap:12px;
+    border-radius:var(--radius);
+    padding:20px 18px 14px;
+    box-shadow:0 6px 20px rgba(3,20,26,0.08);
   }
-  .guest-row .who{font-weight:700; color:var(--ink);}
-  .guest-row .days{font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--ink-dim);}
-  .guest-row .cnt{
+  .day-bar-col{
+    flex:1;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+  }
+  .day-bar-val{
     font-family:'IBM Plex Mono', monospace;
-    font-size:13px;
-    color:#fff;
-    background:var(--pool);
-    padding:4px 10px;
-    border-radius:999px;
-    white-space:nowrap;
+    font-size:12px;
+    font-weight:700;
+    color:var(--coral);
+    min-height:15px;
+    line-height:15px;
+  }
+  .day-bar-track{
+    height:110px;
+    width:100%;
+    display:flex; align-items:flex-end;
+    border-bottom:2px solid var(--border);
+  }
+  .day-bar{
+    width:100%;
+    background:var(--coral);
+    border-radius:8px 8px 0 0;
+    opacity:.85;
+    transition:height .3s ease;
+  }
+  .day-bar-col.empty .day-bar{
+    background:var(--card-tint);
+    border:1px dashed var(--border);
+    border-bottom:none;
+    opacity:1;
+  }
+  .day-bar-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--ink-dim);
+    text-align:center;
+    line-height:1.35;
   }
   .empty-note{color:var(--ink-dim); font-size:14px; font-style:italic;}
 

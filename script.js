@@ -97,9 +97,9 @@
   //    dans le fichier "config.json" placé à côté de cette page HTML :
   //    { "supabase_url": "https://xxxx.supabase.co", "supabase_anon_key": "xxxx",
   //      "traffic_ping_count": 1, "end_date_rsvp": "2027-05-10" }
-  //    Le code d'invitation n'est plus stocké ici (il l'était en clair, donc visible
-  //    publiquement sur GitHub) : il est désormais haché en base et vérifié via la
-  //    fonction "check_invite_code" (voir supabase_invite_code_security.sql).
+  //    L'accès à l'envoi du formulaire est sécurisé par un code à usage
+  //    unique envoyé par email (OTP), la vérification par code d'invitation
+  //    a été supprimée.
   //    Le champ "traffic_ping_count" (optionnel, défaut 1) définit combien de lignes
   //    sont insérées dans "traffic_logging" à chaque chargement de la page, pour
   //    maintenir le projet Supabase gratuit actif.
@@ -661,12 +661,10 @@
   // Même mécanique d'OTP : l'invité valide son adresse, sa réponse la plus
   // récente est rechargée dans le formulaire, et il peut l'enregistrer.
   // L'email n'est pas modifiable dans ce mode (c'est lui qui identifie la
-  // réponse) et le code d'invitation est inutile (grisé).
+  // réponse).
   const modeNewBtn = document.getElementById('mode-new-btn');
   const modeUpdateBtn = document.getElementById('mode-update-btn');
   const verifyOtpBtn = document.getElementById('verify-otp-btn');
-  const fCodeField = document.getElementById('f-code-field');
-  const fCodeHint = document.getElementById('f-code-hint');
   const fEmailInput = document.getElementById('f-email');
   let rsvpMode = 'new';
   let editingGuestId = null;
@@ -687,9 +685,6 @@
     deleteGuestBtn.textContent = 'Annuler ma réservation';
     modeNewBtn.classList.toggle('active', !isUpdate);
     modeUpdateBtn.classList.toggle('active', isUpdate);
-    document.getElementById('f-code').disabled = isUpdate;
-    fCodeField.classList.toggle('disabled-field', isUpdate);
-    fCodeHint.style.display = isUpdate ? '' : 'none';
     verifyOtpBtn.classList.toggle('hidden', !isUpdate);
     submitBtn.textContent = isUpdate ? 'Enregistrer mes modifications' : 'Envoyer ma réponse';
     fEmailInput.disabled = false;
@@ -850,7 +845,6 @@
     const count = document.getElementById('f-count').value;
     const msg = document.getElementById('f-msg').value.trim();
     const sleep = document.getElementById('f-sleep').checked;
-    const code = document.getElementById('f-code').value.trim();
     const checked = Array.from(daysGrid.querySelectorAll('input:checked')).map(i=>Number(i.value));
 
     if(!name){
@@ -875,7 +869,7 @@
     }
 
     // En mode modification : l'email est déjà vérifié (bouton « Vérifier »),
-    // le code d'invitation est inutile, et on met à jour la ligne existante.
+    // et on met à jour la ligne existante.
     if(rsvpMode === 'update'){
       if(!editingGuestId || !updateEmailVerified){
         statusMsg.textContent = 'Vérifie d\'abord ton adresse email (bouton « Vérifier ») pour charger ta réponse.';
@@ -887,32 +881,6 @@
     }
 
     submitBtn.disabled = true;
-    statusMsg.textContent = 'Vérification du code...';
-    statusMsg.className = 'status-msg';
-
-    try{
-      const { data: codeValid, error: codeError } = await dbClient.rpc('check_invite_code', { code });
-      if(codeError){
-        console.error(codeError);
-        statusMsg.textContent = 'Erreur lors de la vérification du code.';
-        statusMsg.className = 'status-msg err';
-        submitBtn.disabled = false;
-        return;
-      }
-      if(!codeValid){
-        statusMsg.textContent = 'Code d\'invitation incorrect.';
-        statusMsg.className = 'status-msg err';
-        submitBtn.disabled = false;
-        return;
-      }
-    }catch(err){
-      console.error(err);
-      statusMsg.textContent = 'Erreur lors de la vérification du code.';
-      statusMsg.className = 'status-msg err';
-      submitBtn.disabled = false;
-      return;
-    }
-
     statusMsg.textContent = 'Vérification du code email...';
     statusMsg.className = 'status-msg';
 
